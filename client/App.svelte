@@ -5,7 +5,13 @@
 
   let bcan
   let fps = 0
-  let channel = geckos({port: 3000})
+  let channel = geckos({ port: 3000 })
+  channel.onConnect(err => {
+    if (err) {
+      console.error(err.message)
+      return
+    }
+  })
 
   onMount(_ => {
     createScene(bcan, ({ engine, scene }) => {

@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import Fastify from 'fastify'
 import FastifyVite from '@fastify/vite'
-import geckos from '@geckos.io/server'
+import geckos, { iceServers } from '@geckos.io/server'
 
 export async function main(dev) {
   let server = Fastify()
@@ -24,20 +24,20 @@ export async function main(dev) {
   return server
 }
 
-function geck() {
+function geck(server) {
   let io = geckos()
+
+  io.addServer(server)
 
   io.onConnection(channel => {
     console.log('connected:', channel)
   })
-
-  io.listen()
 
   return io
 }
 
 if (process.argv[1] == fileURLToPath(new URL(import.meta.url))) {
   let server = await main()
-  geck()
+  geck(server.server)
   await server.listen({ port: 3000 })
 }

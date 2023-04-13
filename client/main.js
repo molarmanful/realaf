@@ -3,8 +3,6 @@ import 'uno.css'
 import './style.css'
 import App from './App.svelte'
 
-let app = new App({
+export default new App({
   target: document.getElementById('app'),
 })
-
-export default app

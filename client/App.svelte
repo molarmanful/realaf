@@ -1,9 +1,11 @@
 <script>
   import { onMount } from 'svelte'
   import { createScene } from './scenes/x0'
+  import geckos from '@geckos.io/client'
 
   let bcan
   let fps = 0
+  let channel = geckos()
 
   onMount(_ => {
     createScene(bcan, ({ engine, scene }) => {

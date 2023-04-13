@@ -4,14 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "node server.js --dev",
+    "start": "node server.js",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build --outDir dist/client --ssrManifest",
+    "build:server": "vite build --outDir dist/server --ssr ./index.js"
   },
   "dependencies": {
     "@babylonjs/core": "^5.43.1",
     "@babylonjs/loaders": "^5.48.0",
+    "@geckos.io/client": "^2.3.0",
+    "@geckos.io/server": "^2.3.0",
     "babylonjs-gltf2interface": "^5.48.0",
+    "fastify": "^4.15.0",
     "svelte": "^3.55.1"
   },
   "devDependencies": {
@@ -20,6 +25,7 @@
     "@babylonjs/inspector": "^5.48.0",
     "@babylonjs/materials": "^5.48.0",
     "@babylonjs/serializers": "^5.48.0",
+    "@fastify/vite": "^4.0.0",
     "@sveltejs/vite-plugin-svelte": "^2.0.3",
     "@types/react": "^18.0.27",
     "@types/react-dom": "^18.0.10",

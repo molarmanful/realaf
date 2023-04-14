@@ -1,6 +1,7 @@
 import { parentPort } from 'node:worker_threads'
 
 parentPort.on('message', d => {
+  d = 1000 / d
   let prev = performance.now()
 
   while (1) {

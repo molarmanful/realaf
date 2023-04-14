@@ -31,7 +31,7 @@ let geck = server => {
   let state = {}
 
   let tick = new Worker('./server/tick.js')
-  tick.postMessage(1000 / 20)
+  tick.postMessage(20)
   tick.on('message', now => {
     io.emit('ping', state)
   })
@@ -42,8 +42,7 @@ let geck = server => {
       io.emit('die', ch.id, { reliable: true })
     })
 
-    let pos = [0, 1, 0]
-    let data = { pos, rot: [0, 0, 0, 1] }
+    let data = { pos: [0, 3, 0], rot: [0, 0, 0, 1] }
     state[ch.id] = data
     io.emit('spawn', { id: ch.id, data, state }, { reliable: true })
 

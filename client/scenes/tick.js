@@ -1,4 +1,5 @@
-self.onmessage = d => {
+self.onmessage = ({ data }) => {
+  let d = 1000 / data
   let prev = performance.now()
 
   while (1) {

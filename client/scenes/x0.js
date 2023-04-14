@@ -54,7 +54,6 @@ let createScene = async (canvas, ch, cb = _ => { }) => {
     let b = B.MeshBuilder.CreateBox(name, { size: 1 }, scene)
     shadow.getShadowMap().renderList.push(b)
     b.receiveShadows = true
-    b.checkCollisions = true
     return b
   }
 
@@ -64,12 +63,14 @@ let createScene = async (canvas, ch, cb = _ => { }) => {
   }
 
   let box = makeBox()
+  box.checkCollisions = true
 
   camera.lockedTarget = box
 
   let loop = new tick()
+  loop.postMessage(60)
   loop.addEventListener('message', now => {
-    box.moveWithCollisions(B.Vector3.Down().scale(.1))
+    box.moveWithCollisions(new B.Vector3(0, -9.81 / 60, 0))
   })
 
   let down = {}
@@ -106,19 +107,24 @@ let createScene = async (canvas, ch, cb = _ => { }) => {
 
   let boxes = {}
   boxes[ch.id] = box
-  ch.on('spawn', ({ id, data, state: st }) => {
-    if (id == ch.id) {
-      for (let i in st) {
-        if (i != ch.id) {
+  ch.on('spawn', ({ id, data, state }) => {
+    if (!boxes[id] && id != ch.id) {
+      let b = makeBox(id)
+      updateBox(b, data)
+      boxes[id] = b
+    }
+    else {
+      for (let i in state) {
+        if (!boxes[i] && i != ch.id) {
           let b = makeBox(i)
-          boxes[ch.id] = b
+          boxes[i] = b
         }
-        updateBox(boxes[ch.id], st[i])
+        updateBox(boxes[i], state[i])
       }
 
-      ch.on('ping', st => {
-        for (let i in st) {
-          if (i != ch.id) updateBox(boxes[i], st[i])
+      ch.on('ping', state => {
+        for (let i in state) {
+          if (i != ch.id) updateBox(boxes[i], state[i])
         }
 
         ch.emit('pong', {
@@ -135,11 +141,6 @@ let createScene = async (canvas, ch, cb = _ => { }) => {
       engine.runRenderLoop(() => {
         scene.render()
       })
-    }
-    else {
-      let b = makeBox(id)
-      updateBox(b, data)
-      boxes[ch.id] = b
     }
   })
 

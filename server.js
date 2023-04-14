@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import Fastify from 'fastify'
 import FastifyVite from '@fastify/vite'
 import geckos from '@geckos.io/server'
+import { Worker } from 'node:worker_threads'
 
 export async function main(dev) {
   let server = Fastify()
@@ -22,13 +23,33 @@ export async function main(dev) {
   return server
 }
 
-function geck(server) {
+let geck = server => {
   let io = geckos()
 
   io.addServer(server)
 
-  io.onConnection(channel => {
+  let state = {}
 
+  let tick = new Worker('./server/tick.js')
+  tick.postMessage(1000 / 20)
+  tick.on('message', now => {
+    io.emit('ping', state)
+  })
+
+  io.onConnection(ch => {
+    ch.onDisconnect(_ => {
+      delete state[ch.id]
+      io.emit('die', ch.id, { reliable: true })
+    })
+
+    let pos = [0, 1, 0]
+    let data = { pos, rot: [0, 0, 0, 1] }
+    state[ch.id] = data
+    io.emit('spawn', { id: ch.id, data, state }, { reliable: true })
+
+    ch.on('pong', data => {
+      state[ch.id] = data
+    })
   })
 
   return io

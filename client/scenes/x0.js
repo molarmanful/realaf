@@ -1,17 +1,20 @@
 import * as B from '@babylonjs/core'
 import { GridMaterial } from '@babylonjs/materials'
+// import Ammo from 'ammojs-typed'
+import tick from './tick?worker'
 
-let createScene = async (canvas, cb = _ => { }) => {
+let createScene = async (canvas, ch, cb = _ => { }) => {
   let dpiScale = 4
   let engine = new B.Engine(canvas, true)
   engine.setHardwareScalingLevel(devicePixelRatio / dpiScale)
   let scene = new B.Scene(engine)
   scene.clearColor = B.Color3.Black().toLinearSpace()
+  scene.collisionsEnabled = true
 
   let camera = new B.FollowCamera('camera', new B.Vector3(0, 10, 0), scene)
   // camera.fov = .1
   camera.heightOffset = 10
-  camera.rotationOffset = 45
+  camera.rotationOffset = 180
   camera.radius = 10
   // camera.attachControl(canvas, true)
 
@@ -38,45 +41,62 @@ let createScene = async (canvas, cb = _ => { }) => {
   //   mainTextureSamples: 4,
   // })
 
-  let groundSize = 40
-  let ground = B.MeshBuilder.CreatePlane('ground', { size: groundSize }, scene)
-  ground.rotation.x = Math.PI / 2
-  shadow.getShadowMap().renderList.push(ground)
-  ground.receiveShadows = true
-  console.log(ground)
+  let roomSize = 40
+  let room = B.MeshBuilder.CreateBox('room', { size: roomSize, sideOrientation: B.Mesh.BACKSIDE }, scene)
+  room.position.y = roomSize / 2
+  shadow.getShadowMap().renderList.push(room)
+  room.receiveShadows = true
+  room.checkCollisions = true
 
-  ground.material = new GridMaterial('', scene)
+  room.material = new GridMaterial('', scene)
 
-  let box = B.MeshBuilder.CreateBox('box', { size: 1 }, scene)
-  box.position.y = .5
-  shadow.getShadowMap().renderList.push(box)
-  box.receiveShadows = true
+  let makeBox = (name = 'box') => {
+    let b = B.MeshBuilder.CreateBox(name, { size: 1 }, scene)
+    shadow.getShadowMap().renderList.push(b)
+    b.receiveShadows = true
+    b.checkCollisions = true
+    return b
+  }
 
-  let speed = .1
+  let updateBox = (b, data) => {
+    b.position = new B.Vector3(...data.pos)
+    b.rotationQuaternion = new B.Quaternion(...data.rot)
+  }
+
+  let box = makeBox()
 
   camera.lockedTarget = box
 
-  let down = {}
-  addEventListener('keydown', e => {
-    down[e.key] = true
-  })
-  addEventListener('keyup', e => {
-    delete down[e.key]
+  let loop = new tick()
+  loop.addEventListener('message', now => {
+    box.moveWithCollisions(B.Vector3.Down().scale(.1))
   })
 
+  let down = {}
+  addEventListener('keydown', e => {
+    down[e.code] = true
+  })
+  addEventListener('keyup', e => {
+    delete down[e.code]
+  })
+
+  let movSpeed = .1
+  let rotSpeed = .02
   scene.registerBeforeRender(_ => {
     let map = {
-      w() {
-        box.position.x -= speed
+      KeyW() {
+        // box.locallyTranslate(B.Vector3.Forward().scale(movSpeed))
+        box.moveWithCollisions(box.getDirection(B.Vector3.Forward()).scale(movSpeed))
       },
-      a() {
-        box.position.z -= speed
+      KeyA() {
+        box.rotate(B.Vector3.Up(), -rotSpeed)
       },
-      s() {
-        box.position.x += speed
+      KeyS() {
+        // box.locallyTranslate(B.Vector3.Backward().scale(movSpeed))
+        box.moveWithCollisions(box.getDirection(B.Vector3.Backward()).scale(movSpeed))
       },
-      d() {
-        box.position.z += speed
+      KeyD() {
+        box.rotate(B.Vector3.Up(), rotSpeed)
       },
     }
     for (let k in down) {
@@ -84,9 +104,50 @@ let createScene = async (canvas, cb = _ => { }) => {
     }
   })
 
-  engine.runRenderLoop(() => {
-    scene.render()
+  let boxes = {}
+  boxes[ch.id] = box
+  ch.on('spawn', ({ id, data, state: st }) => {
+    if (id == ch.id) {
+      for (let i in st) {
+        if (i != ch.id) {
+          let b = makeBox(i)
+          boxes[ch.id] = b
+        }
+        updateBox(boxes[ch.id], st[i])
+      }
+
+      ch.on('ping', st => {
+        for (let i in st) {
+          if (i != ch.id) updateBox(boxes[i], st[i])
+        }
+
+        ch.emit('pong', {
+          pos: box.position.asArray(),
+          rot: box.rotationQuaternion.asArray()
+        })
+      })
+
+      ch.on('die', id => {
+        boxes[id].dispose()
+        delete boxes[id]
+      })
+
+      engine.runRenderLoop(() => {
+        scene.render()
+      })
+    }
+    else {
+      let b = makeBox(id)
+      updateBox(b, data)
+      boxes[ch.id] = b
+    }
   })
+
+  // let ammo = await Ammo.call({})
+  // scene.enablePhysics(new B.Vector3(0, -9.81, 0), new B.AmmoJSPlugin(true, ammo))
+
+  // room.physicsImpostor = new B.PhysicsImpostor(room, B.PhysicsImpostor.MeshImpostor, { mass: 0, restitution: .9, }, scene)
+  // box.physicsImpostor = new B.PhysicsImpostor(box, B.PhysicsImpostor.BoxImpostor, { mass: 2, restitution: .1, }, scene)
 
   addEventListener('resize', _ => {
     engine.resize()

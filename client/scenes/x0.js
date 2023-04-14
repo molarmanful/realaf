@@ -2,11 +2,10 @@ import * as B from '@babylonjs/core'
 import { GridMaterial } from '@babylonjs/materials'
 // import Ammo from 'ammojs-typed'
 import tick from './tick?worker'
-import { SnapshotInterpolation, Vault } from '@geckos.io/snapshot-interpolation'
+import { SnapshotInterpolation } from '@geckos.io/snapshot-interpolation'
 
 export let createScene = async (canvas, ch, cb = _ => { }) => {
   let SI = new SnapshotInterpolation(20)
-  let vault = new Vault()
 
   // ENGINE + SCENE
 

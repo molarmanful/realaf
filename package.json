@@ -17,7 +17,6 @@
     "@geckos.io/server": "^2.3.0",
     "@geckos.io/snapshot-interpolation": "^1.1.0",
     "@geckos.io/typed-array-buffer-schema": "^1.2.1",
-    "ammojs-typed": "^1.0.6",
     "babylonjs-gltf2interface": "^5.56.0",
     "fastify": "^4.15.0",
     "svelte": "^3.58.0"

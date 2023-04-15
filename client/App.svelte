@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte'
-  import { createScene } from './scenes/x0'
+  import { SCENE, createScene } from './scenes/x0'
   import geckos from '@geckos.io/client'
 
   let bcan
@@ -14,11 +14,16 @@
         return
       }
 
-      createScene(bcan, ch, ({ engine, scene }) => {
-        scene.registerAfterRender(_ => {
-          fps = engine.getFps() | 0
-        })
+      let S = new SCENE(bcan, ch)
+      S.scene.registerAfterRender(_ => {
+        fps = S.engine.getFps() | 0
       })
+
+      // createScene(bcan, ch, ({ engine, scene }) => {
+      //   scene.registerAfterRender(_ => {
+      //     fps = engine.getFps() | 0
+      //   })
+      // })
     })
   })
 </script>

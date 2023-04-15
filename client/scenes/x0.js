@@ -1,201 +1,315 @@
 import * as B from '@babylonjs/core'
 import { GridMaterial } from '@babylonjs/materials'
-// import Ammo from 'ammojs-typed'
 import tick from './tick?worker'
 import { SnapshotInterpolation } from '@geckos.io/snapshot-interpolation'
 import { snapModel } from '../../common/schemas'
+import VARS from '../../common/config'
 
-export let createScene = async (canvas, ch, cb = _ => { }) => {
-  let SI = new SnapshotInterpolation(20)
+export class SCENE {
+  constructor(canvas, ch) {
+    this.B = B
+    this.canvas = canvas
+    this.ch = ch
+    this.SI = new SnapshotInterpolation(20)
+    this.dpiScale = 1
 
-  // ENGINE + SCENE
+    this.Engine()
+    this.Scene()
 
-  let dpiScale = 4
-  let engine = new B.Engine(canvas, true)
-  engine.setHardwareScalingLevel(devicePixelRatio / dpiScale)
-  let scene = new B.Scene(engine)
-  scene.clearColor = B.Color3.Black().toLinearSpace()
-  scene.collisionsEnabled = true
+    this.Camera()
+    this.RPipe()
 
-  // CAMERA
+    // this.Glow()
 
-  let camera = new B.FollowCamera('camera', new B.Vector3(0, 10, 0), scene)
-  // camera.fov = .1
-  camera.heightOffset = 10
-  camera.lowerHeightOffsetLimit = 0
-  camera.upperHeightOffsetLimit = 10
-  camera.rotationOffset = camera.lowerRotationOffsetLimit = camera.upperRotationOffsetLimit = 180
-  camera.radius = camera.lowerRadiusLimit = camera.upperRadiusLimit = 10
-  // camera.attachControl(canvas, true)
+    this.Light()
+    this.Shadow()
 
-  // POST-PROCESS
+    this.roomSize = 40
+    this.Room()
 
-  let pipe = new B.DefaultRenderingPipeline('pipe', true, scene, [camera])
-  pipe.samples = 4
-  pipe.chromaticAberrationEnabled = true
-  pipe.chromaticAberration.aberrationAmount = 6
-  pipe.grainEnabled = true
-  pipe.grain.animated = true
+    this.boxSize = 1
+    this.Box()
 
-  // LIGHT + SHADOW
+    this.movSpeed = 12
+    this.rotSpeed = 3
+    this.jumpForce = 7
+    this.airInf = .01
+    this.upVel = 0
+    this.forVel = 0
+    this.vel = B.Vector3.Zero()
+    this.rot = 0
+    this.toJump = false
 
-  // let light = new B.HemisphericLight('light', new B.Vector3(0, 1, .5), scene)
-  let light = new B.DirectionalLight('light', new B.Vector3(-1, -4, -2), scene)
-  light.intensity = 1.4
-  let shadow = new B.CascadedShadowGenerator(2048, light)
-  shadow.usePercentageCloserFiltering = true
-  // shadow.stabilizeCascades = true
-  shadow.lambda = 1
-  shadow.cascadeBlendPercentage = 0
-  shadow.shadowMaxZ = camera.maxZ
-  shadow.depthClamp = false
-  shadow.autoCalcDepthBounds = true
+    this.init()
+  }
 
-  // let gl = new B.GlowLayer('glow', scene, {
-  //   mainTextureSamples: 4,
-  // })
+  Engine() {
+    let engine = new B.Engine(this.canvas, true)
+    engine.setHardwareScalingLevel(devicePixelRatio / this.dpiScale)
 
-  // ROOM
+    addEventListener('resize', _ => {
+      engine.resize()
+    })
 
-  let roomSize = 40
-  let room = B.MeshBuilder.CreateBox('room', { size: roomSize, sideOrientation: B.Mesh.BACKSIDE }, scene)
-  room.position.y = roomSize / 2
-  shadow.getShadowMap().renderList.push(room)
-  room.receiveShadows = true
-  room.checkCollisions = true
+    this.engine = engine
+  }
 
-  room.material = new GridMaterial('', scene)
+  Scene() {
+    let scene = new B.Scene(this.engine)
+    scene.clearColor = B.Color3.Black().toLinearSpace()
+    scene.collisionsEnabled = true
 
-  // PLAYER
+    this.scene = scene
+  }
 
-  let makeBox = (name = 'box') => {
-    let b = B.MeshBuilder.CreateBox(name, { size: 1 }, scene)
-    shadow.getShadowMap().renderList.push(b)
-    b.receiveShadows = true
-    b.material = new B.StandardMaterial('', scene)
+  Camera() {
+    let camera = new B.FollowCamera('camera', new B.Vector3(0, 10, 0), this.scene)
+    // camera.fov = .1
+    camera.heightOffset = 10
+    camera.lowerHeightOffsetLimit = 0
+    camera.upperHeightOffsetLimit = 10
+    camera.rotationOffset = camera.lowerRotationOffsetLimit = camera.upperRotationOffsetLimit = 180
+    camera.radius = camera.lowerRadiusLimit = camera.upperRadiusLimit = 10
+    // camera.attachControl(this.canvas, true)
+
+    this.camera = camera
+  }
+
+  RPipe() {
+    let pipe = new B.DefaultRenderingPipeline('pipe', true, this.scene, [this.camera])
+    pipe.samples = 4
+    pipe.chromaticAberrationEnabled = true
+    pipe.chromaticAberration.aberrationAmount = 6
+    pipe.grainEnabled = true
+    pipe.grain.animated = true
+
+    this.pipe = pipe
+  }
+
+  Glow() {
+    let gl = new B.GlowLayer('glow', this.scene, {
+      mainTextureSamples: 4,
+    })
+
+    this.gl = gl
+  }
+
+  Light() {
+    // let light = new B.HemisphericLight('light', new B.Vector3(0, 1, .5), this.scene)
+    let light = new B.DirectionalLight('light', new B.Vector3(-1, -4, -2), this.scene)
+    light.intensity = 1.4
+
+    this.light = light
+  }
+
+  Shadow() {
+    let shadow = new B.CascadedShadowGenerator(2048, this.light)
+    shadow.usePercentageCloserFiltering = true
+    // shadow.stabilizeCascades = true
+    shadow.lambda = 1
+    shadow.cascadeBlendPercentage = 0
+    shadow.shadowMaxZ = this.camera.maxZ
+    shadow.depthClamp = false
+    shadow.autoCalcDepthBounds = true
+
+    this.shadow = shadow
+  }
+
+  enableShadows(m) {
+    this.shadow.getShadowMap().renderList.push(m)
+    m.receiveShadows = true
+  }
+
+  Room() {
+    let room = B.MeshBuilder.CreateBox('room', { size: this.roomSize, sideOrientation: B.Mesh.BACKSIDE }, this.scene)
+    room.position.y = this.roomSize / 2
+    this.enableShadows(room)
+    room.checkCollisions = true
+
+    room.material = new GridMaterial('', this.scene)
+
+    this.room = room
+  }
+
+  Box() {
+    let box = this.makeBox()
+    box.isPickable = false
+    this.camera.lockedTarget = box
+
+    this.box = box
+  }
+
+  makeBox(name = 'box') {
+    let b = B.MeshBuilder.CreateBox(name, { size: this.boxSize }, this.scene)
+    this.enableShadows(b)
+    b.position = B.Vector3.Zero()
+    b.ellipsoid = B.Vector3.One().scale(this.boxSize / 2)
+    b.checkCollisions = true
+    b.material = new B.StandardMaterial('', this.scene)
+
     return b
   }
 
-  let updateBox = (b, data) => {
+  updateBox(b, data) {
     b.material.diffuseColor = B.Color3.FromHSV(data.hue, 1, 1)
     b.position = new B.Vector3(...data.pos)
     b.rotation.y = data.rot
-    b.checkCollisions = true
   }
 
-  let box = makeBox()
-  camera.lockedTarget = box
+  checkGrounded() {
+    let ray = new B.Ray(this.box.position, B.Vector3.Down(), this.boxSize / 2 + .01)
+    return this.scene.pickWithRay(ray).hit
+  }
 
-  let sendPos = _ => ch.emit('pos', box.position.asArray())
-  let sendRot = _ => ch.emit('rot', box.rotation.y)
+  checkCeiled() {
+    let ray = new B.Ray(this.box.position, B.Vector3.Up(), this.boxSize / 2 + .01)
+    return this.scene.pickWithRay(ray).hit
+  }
 
-  // FIXED TICKS (e.g. PHYSICS)
+  init() {
+    this.ch.on('spawn', ({ id, state }) => {
+      this.boxes = {}
+      this.left = {}
 
-  let loop = new tick()
-  loop.postMessage(60)
-  loop.addEventListener('message', now => {
-    box.moveWithCollisions(new B.Vector3(0, -9.81 / 60, 0))
-    sendPos()
-  })
+      this.id = id
+      this.boxes[id] = this.box
 
-  // MULTIPLAYER
+      this.initBoxes(state)
 
-  let boxes = {}
-  let left = {}
-  boxes[ch.id] = box
-  ch.on('spawn', state => {
+      this.ch.on('rawMessage', buf => {
+        this.addSnap(buf)
+      })
+
+      this.listenKey()
+
+      this.scene.registerBeforeRender(_ => {
+        this.play()
+        this.snapInter()
+      })
+
+      this.tickLoop(_ => {
+        this.sendPos()
+        this.sendRot()
+      })
+
+      this.ch.on('leave', this.kill)
+
+      this.engine.runRenderLoop(() => {
+        this.scene.render()
+      })
+    })
+  }
+
+  initBoxes(state) {
     for (let i in state) {
-      if (!boxes[i] && i != ch.id) {
-        let b = makeBox(i)
-        boxes[i] = b
+      if (!this.boxes[i] && i != this.id) {
+        let b = this.makeBox(i)
+        this.boxes[i] = b
       }
-      updateBox(boxes[i], state[i])
-      console.log(i, state[i].hue)
+      this.updateBox(this.boxes[i], state[i])
     }
+  }
 
-    ch.on('rawMessage', buf => {
-      let snap = snapModel.fromBuffer(buf)
-      SI.snapshot.add(snap)
+  listenKey() {
+    let down = {}
+    addEventListener('keydown', e => {
+      down[e.code] = true
+    })
+    addEventListener('keyup', e => {
+      delete down[e.code]
     })
 
-    scene.registerBeforeRender(_ => {
-      let snap = SI.calcInterpolation('hue(deg) x y z rot(rad)')
-      if (snap) {
-        for (let s of snap.state) {
-          let { id, hue, x, y, z, rot } = s
-          if (!left[id] && id != ch.id) {
-            if (!boxes[id]) {
-              boxes[id] = makeBox(id)
-              console.log(id, hue)
-            }
-            updateBox(boxes[id], {
-              hue,
-              pos: [x, y, z],
-              rot,
-            })
+    this.down = down
+  }
+
+  addSnap(buf) {
+    let snap = snapModel.fromBuffer(buf)
+    this.SI.snapshot.add(snap)
+  }
+
+  snapInter() {
+    let snap = this.SI.calcInterpolation('hue(deg) x y z rot(rad)')
+    if (snap) {
+      for (let s of snap.state) {
+        let { id, hue, x, y, z, rot } = s
+        if (!this.left[id] && id != this.id) {
+          if (!this.boxes[id]) {
+            this.boxes[id] = this.makeBox(id)
           }
+          this.updateBox(this.boxes[id], {
+            hue,
+            pos: [x, y, z],
+            rot,
+          })
         }
       }
-    })
+    }
+  }
 
-    ch.on('leave', id => {
-      boxes[id].dispose()
-      delete boxes[id]
-      left[id] = true
-    })
+  tickLoop(f, t = VARS.cTicks) {
+    let loop = new tick()
+    loop.postMessage(t)
+    loop.addEventListener('message', f)
+  }
 
-    engine.runRenderLoop(() => {
-      scene.render()
-    })
-  })
+  play() {
+    let dt = this.scene.deltaTime * .001
+    this.grounded = this.checkGrounded()
+    let g = this.grounded
+    this.upVel -= 9.81 * dt
 
-  // INPUTS -> ACTIONS
+    this.act(dt)
 
-  let down = {}
-  addEventListener('keydown', e => {
-    down[e.code] = true
-  })
-  addEventListener('keyup', e => {
-    delete down[e.code]
-  })
+    if (this.toJump) {
+      this.toJump = false
+    }
+    this.box.moveWithCollisions(this.box.getDirection(B.Vector3.Forward()).scale(this.forVel * dt))
+    this.box.moveWithCollisions(new B.Vector3(0, this.upVel * dt, 0))
+    this.box.rotation.y += this.rot * dt
 
-  let movSpeed = .1
-  let rotSpeed = .02
-  scene.registerBeforeRender(_ => {
+    this.rot = 0
+  }
+
+  sendPos() {
+    this.ch.emit('pos', this.box.position.asArray())
+  }
+
+  sendRot() {
+    this.ch.emit('rot', this.box.rotation.y)
+  }
+
+  act(dt) {
+    if (this.grounded) this.forVel = 0
+
     let map = {
-      KeyW() {
-        // box.locallyTranslate(B.Vector3.Forward().scale(movSpeed))
-        box.moveWithCollisions(box.getDirection(B.Vector3.Forward()).scale(movSpeed))
-        sendPos()
+      Space(t) {
+        if (t.grounded) t.upVel = t.jumpForce
       },
-      KeyA() {
-        box.rotation.y -= rotSpeed
-        sendRot()
+      KeyW(t) {
+        if (t.grounded) t.forVel = t.movSpeed
+        else t.forVel = Math.min(t.movSpeed, t.forVel + t.movSpeed * t.airInf)
       },
-      KeyS() {
-        // box.locallyTranslate(B.Vector3.Backward().scale(movSpeed))
-        box.moveWithCollisions(box.getDirection(B.Vector3.Backward()).scale(movSpeed))
-        sendPos()
+      KeyA(t) {
+        t.rot -= t.rotSpeed
       },
-      KeyD() {
-        box.rotation.y += rotSpeed
-        sendRot()
+      KeyS(t) {
+        if (t.grounded) t.forVel = -t.movSpeed
+        else t.forVel = Math.max(-t.movSpeed, t.forVel - t.movSpeed * t.airInf)
+      },
+      KeyD(t) {
+        t.rot += t.rotSpeed
       },
     }
-    for (let k in down) {
-      if (map[k]) map[k]()
+
+    for (let k in map) {
+      if (this.down[k]) map[k](this)
     }
-  })
+  }
 
-  // let ammo = await Ammo.call({})
-  // scene.enablePhysics(new B.Vector3(0, -9.81, 0), new B.AmmoJSPlugin(true, ammo))
-
-  // room.physicsImpostor = new B.PhysicsImpostor(room, B.PhysicsImpostor.MeshImpostor, { mass: 0, restitution: .9, }, scene)
-  // box.physicsImpostor = new B.PhysicsImpostor(box, B.PhysicsImpostor.BoxImpostor, { mass: 2, restitution: .1, }, scene)
-
-  addEventListener('resize', _ => {
-    engine.resize()
-  })
-
-  cb({ B, engine, scene })
+  kill(id) {
+    this.boxes[id].dispose()
+    delete this.boxes[id]
+    this.left[id] = true
+    setTimeout(_ => delete this.left[id], 3 / VARS.cTicks)
+  }
 }

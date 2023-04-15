@@ -3,6 +3,7 @@ import { GridMaterial } from '@babylonjs/materials'
 // import Ammo from 'ammojs-typed'
 import tick from './tick?worker'
 import { SnapshotInterpolation } from '@geckos.io/snapshot-interpolation'
+import { snapModel } from '../../common/schemas'
 
 export let createScene = async (canvas, ch, cb = _ => { }) => {
   let SI = new SnapshotInterpolation(20)
@@ -71,16 +72,18 @@ export let createScene = async (canvas, ch, cb = _ => { }) => {
     let b = B.MeshBuilder.CreateBox(name, { size: 1 }, scene)
     shadow.getShadowMap().renderList.push(b)
     b.receiveShadows = true
+    b.material = new B.StandardMaterial('', scene)
     return b
   }
 
   let updateBox = (b, data) => {
+    b.material.diffuseColor = B.Color3.FromHSV(data.hue, 1, 1)
     b.position = new B.Vector3(...data.pos)
     b.rotationQuaternion = new B.Quaternion(...data.rot)
+    b.checkCollisions = true
   }
 
   let box = makeBox()
-  box.checkCollisions = true
 
   camera.lockedTarget = box
 
@@ -110,20 +113,26 @@ export let createScene = async (canvas, ch, cb = _ => { }) => {
       updateBox(boxes[i], state[i])
     }
 
-    ch.on('state', snap => {
+    ch.on('rawMessage', buf => {
+      let snap = snapModel.fromBuffer(buf)
+      for (let i in snap.state) {
+        let { qx: x, qy: y, qz: z, qw: w } = snap.state[i]
+        snap.state[i].q = { x, y, z, w }
+      }
       SI.snapshot.add(snap)
     })
 
     scene.registerBeforeRender(_ => {
-      let snap = SI.calcInterpolation('x y z q(quat)')
+      let snap = SI.calcInterpolation('hue x y z q(quat)')
       if (snap) {
         for (let s of snap.state) {
-          let { id, x, y, z, q } = s
+          let { id, hue, x, y, z, q } = s
           if (!left[id] && id != ch.id) {
             if (!boxes[id]) {
               boxes[id] = makeBox(id)
             }
             updateBox(boxes[id], {
+              hue,
               pos: [x, y, z],
               rot: [q.x, q.y, q.z, q.w]
             })

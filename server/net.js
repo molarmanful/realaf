@@ -1,16 +1,14 @@
 import geckos from '@geckos.io/server'
 import { Worker } from 'node:worker_threads'
 import { SnapshotInterpolation } from '@geckos.io/snapshot-interpolation'
+import { snapModel } from '../common/schemas.js'
 
-let preSnap = state => Object.entries(state).map(([id, { pos, rot }]) => {
-  pos = pos.map(n => parseFloat(n.toFixed(2)))
-  rot = rot.map(n => parseFloat(n.toFixed(2)))
-  return {
-    id,
-    x: pos[0], y: pos[1], z: pos[2],
-    q: { x: rot[0], y: rot[1], z: rot[2], w: rot[3], }
-  }
-})
+let preSnap = state => Object.entries(state).map(([id, { hue, pos, rot }]) => ({
+  id,
+  hue,
+  x: pos[0], y: pos[1], z: pos[2],
+  qx: rot[0], qy: rot[1], qz: rot[2], qw: rot[3],
+}))
 
 export let geck = server => {
   let io = geckos()
@@ -26,7 +24,7 @@ export let geck = server => {
     if (t % 3n == 0) {
       let snap = SI.snapshot.create(preSnap(state))
       SI.vault.add(snap)
-      io.emit('state', snap)
+      io.raw.emit(snapModel.toBuffer(snap))
     }
   })
 
@@ -34,14 +32,13 @@ export let geck = server => {
     ch.onDisconnect(_ => {
       delete state[ch.id]
       io.emit('leave', ch.id, { reliable: true })
-      console.log('leave', ch.id)
     })
 
-    let data = { pos: [0, 5, 0], rot: [0, 0, 0, 1] }
+    let data = { hue: Math.random() * 360 | 0, pos: [0, 5, 0], rot: [0, 0, 0, 1] }
     state[ch.id] = data
     ch.emit('spawn', state, { reliable: true })
 
-    for (let e of ['pos', 'rot']) {
+    for (let e of ['hue', 'pos', 'rot']) {
       ch.on(e, data => {
         state[ch.id][e] = data
       })

@@ -7,7 +7,7 @@ let preSnap = state => Object.entries(state).map(([id, { hue, pos, rot }]) => ({
   id,
   hue,
   x: pos[0], y: pos[1], z: pos[2],
-  qx: rot[0], qy: rot[1], qz: rot[2], qw: rot[3],
+  rot,
 }))
 
 export let geck = server => {
@@ -34,8 +34,11 @@ export let geck = server => {
       io.emit('leave', ch.id, { reliable: true })
     })
 
-    let data = { hue: Math.random() * 360 | 0, pos: [0, 5, 0], rot: [0, 0, 0, 1] }
-    state[ch.id] = data
+    state[ch.id] = {
+      hue: Math.random() * 360 | 0,
+      pos: [0, 5, 0],
+      rot: 0,
+    }
     ch.emit('spawn', state, { reliable: true })
 
     for (let e of ['hue', 'pos', 'rot']) {

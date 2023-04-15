@@ -443,6 +443,7 @@ packages:
       klaw: 4.1.0
       vite: 4.2.1
     dev: true
+    bundledDependencies: []
 
   /@fortawesome/fontawesome-common-types@6.4.0:
     resolution: {integrity: sha512-HNii132xfomg5QVZw0HwXXpN22s7VBHQBv9CeOu9tfJnhsWQNd2lmTNi8CSrnw5B+5YOmzu1UoPAyxaXsJ6RgQ==}

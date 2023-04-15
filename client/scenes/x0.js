@@ -79,16 +79,15 @@ export let createScene = async (canvas, ch, cb = _ => { }) => {
   let updateBox = (b, data) => {
     b.material.diffuseColor = B.Color3.FromHSV(data.hue, 1, 1)
     b.position = new B.Vector3(...data.pos)
-    b.rotationQuaternion = new B.Quaternion(...data.rot)
+    b.rotation.y = data.rot
     b.checkCollisions = true
   }
 
   let box = makeBox()
-
   camera.lockedTarget = box
 
   let sendPos = _ => ch.emit('pos', box.position.asArray())
-  let sendRot = _ => ch.emit('rot', box.rotationQuaternion.asArray())
+  let sendRot = _ => ch.emit('rot', box.rotation.y)
 
   // FIXED TICKS (e.g. PHYSICS)
 
@@ -111,30 +110,28 @@ export let createScene = async (canvas, ch, cb = _ => { }) => {
         boxes[i] = b
       }
       updateBox(boxes[i], state[i])
+      console.log(i, state[i].hue)
     }
 
     ch.on('rawMessage', buf => {
       let snap = snapModel.fromBuffer(buf)
-      for (let i in snap.state) {
-        let { qx: x, qy: y, qz: z, qw: w } = snap.state[i]
-        snap.state[i].q = { x, y, z, w }
-      }
       SI.snapshot.add(snap)
     })
 
     scene.registerBeforeRender(_ => {
-      let snap = SI.calcInterpolation('hue x y z q(quat)')
+      let snap = SI.calcInterpolation('hue(deg) x y z rot(rad)')
       if (snap) {
         for (let s of snap.state) {
-          let { id, hue, x, y, z, q } = s
+          let { id, hue, x, y, z, rot } = s
           if (!left[id] && id != ch.id) {
             if (!boxes[id]) {
               boxes[id] = makeBox(id)
+              console.log(id, hue)
             }
             updateBox(boxes[id], {
               hue,
               pos: [x, y, z],
-              rot: [q.x, q.y, q.z, q.w]
+              rot,
             })
           }
         }
@@ -172,7 +169,7 @@ export let createScene = async (canvas, ch, cb = _ => { }) => {
         sendPos()
       },
       KeyA() {
-        box.rotate(B.Vector3.Up(), -rotSpeed)
+        box.rotation.y -= rotSpeed
         sendRot()
       },
       KeyS() {
@@ -181,7 +178,7 @@ export let createScene = async (canvas, ch, cb = _ => { }) => {
         sendPos()
       },
       KeyD() {
-        box.rotate(B.Vector3.Up(), rotSpeed)
+        box.rotation.y += rotSpeed
         sendRot()
       },
     }

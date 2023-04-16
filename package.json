@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server.js --dev",
     "start": "node server.js",
-    "build": "pnpm exec vite build"
+    "build": "vite build"
   },
   "dependencies": {
     "@babylonjs/core": "^5.56.0",
@@ -18,7 +18,8 @@
     "babylonjs-gltf2interface": "^5.56.0",
     "dotenv": "^16.0.3",
     "fastify": "^4.15.0",
-    "svelte": "^3.58.0"
+    "svelte": "^3.58.0",
+    "vite": "^4.2.1"
   },
   "devDependencies": {
     "@babylonjs/gui": "^5.56.0",
@@ -33,7 +34,6 @@
     "@unocss/reset": "^0.48.5",
     "browserslist": "^4.21.5",
     "lightningcss": "^1.19.0",
-    "unocss": "^0.48.5",
-    "vite": "^4.2.1"
+    "unocss": "^0.48.5"
   }
 }

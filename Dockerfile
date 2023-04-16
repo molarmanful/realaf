@@ -32,6 +32,7 @@ COPY --from=builder /app /app
 WORKDIR /app
 ENV NODE_ENV production
 ENV PATH /root/.volta/bin:$PATH
+ENV VITE_TCP_HOST 0.0.0.0
 ENV VITE_UDP_HOST fly-global-services
 
 CMD [ "npm", "run", "start" ]

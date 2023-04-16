@@ -25,5 +25,5 @@ export let main = async dev => {
 if (process.argv[1] == fileURLToPath(import.meta.url)) {
   let server = await main()
   new NET(server.server)
-  await server.listen({ port: 3000 })
+  await server.listen({ host: process.env.VITE_TCP_HOST || 'localhost', port: 3000 })
 }

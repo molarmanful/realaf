@@ -38,6 +38,9 @@ export class SCENE {
     this.rot = 0
     this.grounded = false
 
+    this.boxes = {}
+    this.killQ = {}
+
     this.init()
   }
 
@@ -165,14 +168,9 @@ export class SCENE {
   }
 
   init() {
-    this.ch.on('spawn', ({ id, state }) => {
-      this.boxes = {}
-      this.left = {}
-
+    this.ch.on('spawn', id => {
       this.id = id
       this.boxes[id] = this.box
-
-      this.initBoxes(state)
 
       this.ch.on('rawMessage', buf => {
         this.addSnap(buf)
@@ -184,32 +182,25 @@ export class SCENE {
         this.bounce()
       })
 
+      let first = true
       this.scene.registerBeforeRender(_ => {
         this.play()
-        this.snapInter()
+        this.snapInter(first)
+        first = false
       })
 
       this.tickLoop(_ => {
-        this.sendPos()
-        this.sendRot()
+        this.send()
       })
 
-      this.ch.on('leave', this.kill)
+      this.ch.on('leave', id => {
+        this.killQ[id] = true
+      })
 
       this.engine.runRenderLoop(() => {
         this.scene.render()
       })
     })
-  }
-
-  initBoxes(state) {
-    for (let i in state) {
-      if (!this.boxes[i] && i != this.id) {
-        let b = this.makeBox(i)
-        this.boxes[i] = b
-      }
-      this.updateBox(this.boxes[i], state[i])
-    }
   }
 
   listenKey() {
@@ -232,16 +223,7 @@ export class SCENE {
           B.Quaternion.FromEulerAngles(...this.box.rotation.scale(-1).asArray()),
           norm
         )
-
-        // let ray = new B.Ray(this.box.position.clone(), veld.clone(), veld.clone().length())
-        // B.RayHelper.CreateAndShow(ray, this.scene, new B.Color3(1, 0, 0))
-        // let ray1 = new B.Ray(this.box.position.clone(), norm.clone())
-        // B.RayHelper.CreateAndShow(ray1, this.scene, new B.Color3(0, 1, 0))
-
         B.Vector3.ReflectToRef(this.vel, norm, this.vel)
-
-        // let ray2 = new B.Ray(this.box.position.clone(), this.vel.clone(), this.vel.clone().length())
-        // B.RayHelper.CreateAndShow(ray2, this.scene, new B.Color3(0, 0, 1))
       }
     }
   }
@@ -251,20 +233,28 @@ export class SCENE {
     this.SI.snapshot.add(snap)
   }
 
-  snapInter() {
-    let snap = this.SI.calcInterpolation('hue(deg) x y z rot(rad)')
+  snapInter(first = false) {
+    let snap = first
+      ? this.SI.vault.get()
+      : this.SI.calcInterpolation('hue(deg) x y z rot(rad)')
+
     if (snap) {
       for (let s of snap.state) {
         let { id, hue, x, y, z, rot } = s
-        if (!this.left[id] && id != this.id) {
-          if (!this.boxes[id]) {
-            this.boxes[id] = this.makeBox(id)
+        if (first || id != this.id) {
+          if (this.killQ[id]) this.kill(id)
+          else {
+            if (!this.boxes[id]) {
+              console.log(id)
+              this.boxes[id] = this.makeBox(id)
+            }
+
+            this.updateBox(this.boxes[id], {
+              hue,
+              pos: [x, y, z],
+              rot,
+            })
           }
-          this.updateBox(this.boxes[id], {
-            hue,
-            pos: [x, y, z],
-            rot,
-          })
         }
       }
     }
@@ -294,12 +284,12 @@ export class SCENE {
     this.rot = 0
   }
 
-  sendPos() {
-    this.ch.emit('pos', this.box.position.asArray())
-  }
-
-  sendRot() {
-    this.ch.emit('rot', this.box.rotation.y)
+  send() {
+    this.ch.emit('data', {
+      hue: this.box.material.diffuseColor.toHSV().r,
+      pos: this.box.position.asArray(),
+      rot: this.box.rotation.y,
+    })
   }
 
   act() {
@@ -309,42 +299,45 @@ export class SCENE {
     }
 
     let map = {
-      Space(t) {
-        if (t.grounded) t.vel.y = t.jumpForce
+      Space: _ => {
+        if (this.grounded) this.vel.y = this.jumpForce
       },
-      KeyS(t) {
-        if (t.grounded) t.vel.z = -t.movSpeed
-        else t.vel.z = Math.max(-t.movSpeed, t.vel.z - t.movSpeed * t.airInf)
+      KeyS: _ => {
+        if (this.grounded) this.vel.z = -this.movSpeed
+        else this.vel.z = Math.max(-this.movSpeed, this.vel.z - this.movSpeed * this.airInf)
       },
-      KeyW(t) {
-        if (t.grounded) t.vel.z = t.movSpeed
-        else t.vel.z = Math.min(t.movSpeed, t.vel.z + t.movSpeed * t.airInf)
+      KeyW: _ => {
+        if (this.grounded) this.vel.z = this.movSpeed
+        else this.vel.z = Math.min(this.movSpeed, this.vel.z + this.movSpeed * this.airInf)
       },
-      KeyQ(t) {
-        t.rot -= t.rotSpeed
+      KeyQ: _ => {
+        this.rot -= this.rotSpeed
       },
-      KeyE(t) {
-        t.rot += t.rotSpeed
+      KeyE: _ => {
+        this.rot += this.rotSpeed
       },
-      KeyA(t) {
-        if (t.grounded) t.vel.x = -t.movSpeed
-        else t.vel.x = Math.max(-t.movSpeed, t.vel.x - t.movSpeed * t.airInf)
+      KeyA: _ => {
+        if (this.grounded) this.vel.x = -this.movSpeed
+        else this.vel.x = Math.max(-this.movSpeed, this.vel.x - this.movSpeed * this.airInf)
       },
-      KeyD(t) {
-        if (t.grounded) t.vel.x = t.movSpeed
-        else t.vel.x = Math.min(t.movSpeed, t.vel.x + t.movSpeed * t.airInf)
+      KeyD: _ => {
+        if (this.grounded) this.vel.x = this.movSpeed
+        else this.vel.x = Math.min(this.movSpeed, this.vel.x + this.movSpeed * this.airInf)
       },
     }
 
     for (let k in map) {
-      if (this.down[k]) map[k](this)
+      if (this.down[k]) map[k]()
     }
   }
 
   kill(id) {
-    this.boxes[id].dispose()
-    delete this.boxes[id]
-    this.left[id] = true
-    setTimeout(_ => delete this.left[id], 3 / VARS.cTicks)
+    if (this.boxes[id]) {
+      this.boxes[id].dispose()
+      delete this.boxes[id]
+      setTimeout(_ => {
+        delete this.killQ[id]
+      }, VARS.cTicks * 3)
+    }
   }
 }

@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import Fastify from 'fastify'
 import FastifyVite from '@fastify/vite'
-import { geck } from './server/net.js'
+import { NET } from './server/net.js'
 
 export let main = async dev => {
   let server = Fastify()
@@ -24,6 +24,6 @@ export let main = async dev => {
 
 if (process.argv[1] == fileURLToPath(import.meta.url)) {
   let server = await main()
-  geck(server.server)
+  new NET(server.server)
   await server.listen({ port: 3000 })
 }

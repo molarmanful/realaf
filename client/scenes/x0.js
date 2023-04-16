@@ -34,8 +34,6 @@ export class SCENE {
     this.rotSpeed = 3
     this.jumpForce = 7
     this.airInf = .01
-    this.upVel = 0
-    this.forVel = 0
     this.vel = B.Vector3.Zero()
     this.rot = 0
     this.toJump = false
@@ -256,15 +254,15 @@ export class SCENE {
     let dt = this.scene.deltaTime * .001
     this.grounded = this.checkGrounded()
     let g = this.grounded
-    this.upVel -= 9.81 * dt
+    this.vel.y -= 9.81 * dt
 
     this.act(dt)
 
     if (this.toJump) {
       this.toJump = false
     }
-    this.box.moveWithCollisions(this.box.getDirection(B.Vector3.Forward()).scale(this.forVel * dt))
-    this.box.moveWithCollisions(new B.Vector3(0, this.upVel * dt, 0))
+    this.box.moveWithCollisions(this.box.getDirection(B.Vector3.Forward()).scale(this.vel.z * dt))
+    this.box.moveWithCollisions(new B.Vector3(0, this.vel.y * dt, 0))
     this.box.rotation.y += this.rot * dt
 
     this.rot = 0
@@ -279,22 +277,22 @@ export class SCENE {
   }
 
   act(dt) {
-    if (this.grounded) this.forVel = 0
+    if (this.grounded) this.vel.z = 0
 
     let map = {
       Space(t) {
-        if (t.grounded) t.upVel = t.jumpForce
+        if (t.grounded) t.vel.y = t.jumpForce
       },
       KeyW(t) {
-        if (t.grounded) t.forVel = t.movSpeed
-        else t.forVel = Math.min(t.movSpeed, t.forVel + t.movSpeed * t.airInf)
+        if (t.grounded) t.vel.z = t.movSpeed
+        else t.vel.z = Math.min(t.movSpeed, t.vel.z + t.movSpeed * t.airInf)
       },
       KeyA(t) {
         t.rot -= t.rotSpeed
       },
       KeyS(t) {
-        if (t.grounded) t.forVel = -t.movSpeed
-        else t.forVel = Math.max(-t.movSpeed, t.forVel - t.movSpeed * t.airInf)
+        if (t.grounded) t.vel.z = -t.movSpeed
+        else t.vel.z = Math.max(-t.movSpeed, t.vel.z - t.movSpeed * t.airInf)
       },
       KeyD(t) {
         t.rot += t.rotSpeed

@@ -30,13 +30,13 @@ export class SCENE {
     this.boxSize = 1
     this.Box()
 
-    this.movSpeed = 12
+    this.movSpeed = 4
     this.rotSpeed = 3
     this.jumpForce = 7
     this.airInf = .01
     this.vel = B.Vector3.Zero()
     this.rot = 0
-    this.toJump = false
+    this.grounded = false
 
     this.init()
   }
@@ -180,6 +180,10 @@ export class SCENE {
 
       this.listenKey()
 
+      this.box.onCollideObservable.add((m, e) => {
+        this.bounce()
+      })
+
       this.scene.registerBeforeRender(_ => {
         this.play()
         this.snapInter()
@@ -220,6 +224,28 @@ export class SCENE {
     this.down = down
   }
 
+  bounce() {
+    if (!this.grounded) {
+      let norm = this.box.collider.slidePlaneNormal.normalize()
+      if (norm.x != 0 || norm.z != 0) {
+        norm.rotateByQuaternionToRef(
+          B.Quaternion.FromEulerAngles(...this.box.rotation.scale(-1).asArray()),
+          norm
+        )
+
+        // let ray = new B.Ray(this.box.position.clone(), veld.clone(), veld.clone().length())
+        // B.RayHelper.CreateAndShow(ray, this.scene, new B.Color3(1, 0, 0))
+        // let ray1 = new B.Ray(this.box.position.clone(), norm.clone())
+        // B.RayHelper.CreateAndShow(ray1, this.scene, new B.Color3(0, 1, 0))
+
+        B.Vector3.ReflectToRef(this.vel, norm, this.vel)
+
+        // let ray2 = new B.Ray(this.box.position.clone(), this.vel.clone(), this.vel.clone().length())
+        // B.RayHelper.CreateAndShow(ray2, this.scene, new B.Color3(0, 0, 1))
+      }
+    }
+  }
+
   addSnap(buf) {
     let snap = snapModel.fromBuffer(buf)
     this.SI.snapshot.add(snap)
@@ -253,15 +279,15 @@ export class SCENE {
   play() {
     let dt = this.scene.deltaTime * .001
     this.grounded = this.checkGrounded()
-    let g = this.grounded
     this.vel.y -= 9.81 * dt
 
-    this.act(dt)
+    this.act()
 
-    if (this.toJump) {
-      this.toJump = false
-    }
-    this.box.moveWithCollisions(this.box.getDirection(B.Vector3.Forward()).scale(this.vel.z * dt))
+    this.box.moveWithCollisions(
+      this.box
+        .getDirection(new B.Vector3(this.vel.x, 0, this.vel.z))
+        .scale(Math.max(Math.abs(this.vel.x), Math.abs(this.vel.z)) * dt)
+    )
     this.box.moveWithCollisions(new B.Vector3(0, this.vel.y * dt, 0))
     this.box.rotation.y += this.rot * dt
 
@@ -276,26 +302,37 @@ export class SCENE {
     this.ch.emit('rot', this.box.rotation.y)
   }
 
-  act(dt) {
-    if (this.grounded) this.vel.z = 0
+  act() {
+    if (this.grounded) {
+      this.vel.x = 0
+      this.vel.z = 0
+    }
 
     let map = {
       Space(t) {
         if (t.grounded) t.vel.y = t.jumpForce
       },
-      KeyW(t) {
-        if (t.grounded) t.vel.z = t.movSpeed
-        else t.vel.z = Math.min(t.movSpeed, t.vel.z + t.movSpeed * t.airInf)
-      },
-      KeyA(t) {
-        t.rot -= t.rotSpeed
-      },
       KeyS(t) {
         if (t.grounded) t.vel.z = -t.movSpeed
         else t.vel.z = Math.max(-t.movSpeed, t.vel.z - t.movSpeed * t.airInf)
       },
-      KeyD(t) {
+      KeyW(t) {
+        if (t.grounded) t.vel.z = t.movSpeed
+        else t.vel.z = Math.min(t.movSpeed, t.vel.z + t.movSpeed * t.airInf)
+      },
+      KeyQ(t) {
+        t.rot -= t.rotSpeed
+      },
+      KeyE(t) {
         t.rot += t.rotSpeed
+      },
+      KeyA(t) {
+        if (t.grounded) t.vel.x = -t.movSpeed
+        else t.vel.x = Math.max(-t.movSpeed, t.vel.x - t.movSpeed * t.airInf)
+      },
+      KeyD(t) {
+        if (t.grounded) t.vel.x = t.movSpeed
+        else t.vel.x = Math.min(t.movSpeed, t.vel.x + t.movSpeed * t.airInf)
       },
     }
 

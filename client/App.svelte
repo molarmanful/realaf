@@ -5,7 +5,12 @@
 
   let bcan
   let fps = 0
-  let ch = geckos({ port: 3000 })
+  let ch = geckos({
+    url:
+      import.meta.env.VITE_UDP_HOST ||
+      `${location.protocol}//${location.hostname}`,
+    port: 3000,
+  })
 
   onMount(_ => {
     ch.onConnect(err => {

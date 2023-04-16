@@ -49,7 +49,6 @@ export class NET {
 
         delete this.state[id]
         io.emit('leave', id, { reliable: true })
-        console.log('left', id)
       })
 
       this.idC++

@@ -16,7 +16,7 @@ export class NET {
 
   IO(server) {
     let io = geckos({
-      bindAddress: process.env.VITE_UDP_HOST || void 0,
+      bindAddress: process.env.VITE_UDP_HOST,
     })
     io.addServer(server)
 

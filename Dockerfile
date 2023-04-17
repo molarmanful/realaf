@@ -18,6 +18,7 @@ WORKDIR /app
 # Ref: https://docs.npmjs.com/cli/v9/commands/npm-install#description
 
 ENV NODE_ENV production
+ENV VITE_UDP_HOST fly-global-services
 
 COPY . .
 
@@ -32,7 +33,6 @@ COPY --from=builder /app /app
 WORKDIR /app
 ENV NODE_ENV production
 ENV PATH /root/.volta/bin:$PATH
-ENV VITE_TCP_HOST 0.0.0.0
-ENV VITE_UDP_HOST fly-global-services
+ENV TCP_HOST 0.0.0.0
 
 CMD [ "npm", "run", "start" ]

@@ -3,8 +3,7 @@ name: DEPLOY
 on: push
 
 jobs:
-  publish:
-    name: docker + fly
+  docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -17,6 +16,10 @@ jobs:
           context: .
           push: true
           tags: molarmanful/realaf:latest
+  fly:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy --remote-only
         env:

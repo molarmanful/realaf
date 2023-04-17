@@ -18,7 +18,6 @@
     "@geckos.io/server": "^2.3.0",
     "@geckos.io/snapshot-interpolation": "^1.1.0",
     "@geckos.io/typed-array-buffer-schema": "^1.2.1",
-    "dotenv": "^16.0.3",
     "fastify": "^4.15.0",
     "svelte": "^3.58.0",
     "vite": "^4.2.1",

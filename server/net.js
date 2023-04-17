@@ -15,7 +15,9 @@ export class NET {
   }
 
   IO(server) {
-    let io = geckos()
+    let io = geckos({
+      bindAddress: process.env.VITE_UDP_HOST || void 0,
+    })
     io.addServer(server)
 
     this.tickLoop(({ now, t }) => {

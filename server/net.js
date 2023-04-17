@@ -11,14 +11,12 @@ export class NET {
     this.idC = 0
     this.pop = 0
 
-    console.log('UDP', process.env.VITE_UDP_HOST)
-
     this.IO(server)
   }
 
   IO(server) {
     let io = geckos({
-      bindAddress: process.env.VITE_UDP_HOST,
+      bindAddress: process.env.UDP_HOST,
     })
     io.addServer(server)
 

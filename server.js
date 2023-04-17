@@ -22,8 +22,6 @@ export let main = async dev => {
   return server
 }
 
-console.log('TCP', process.env.TCP_HOST)
-
 if (process.argv[1] == fileURLToPath(import.meta.url)) {
   let server = await main()
   new NET(server.server)

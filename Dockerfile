@@ -13,7 +13,6 @@ WORKDIR /app
 
 ENV NODE_ENV production
 ENV VITE_UDP_HOST fly-global-services
-ENV TCP_HOST 0.0.0.0
 
 COPY . .
 
@@ -28,5 +27,7 @@ COPY --from=builder /app /app
 WORKDIR /app
 ENV NODE_ENV production
 ENV PATH /root/.volta/bin:$PATH
+ENV TCP_HOST 0.0.0.0
+ENV UDP_HOST fly-global-services
 
 CMD [ "npm", "run", "start" ]

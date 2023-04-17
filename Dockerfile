@@ -12,7 +12,7 @@ RUN mkdir /app
 WORKDIR /app
 
 ENV NODE_ENV production
-ENV VITE_UDP_HOST fly-global-services
+# ENV VITE_UDP_HOST fly-global-services
 
 COPY . .
 

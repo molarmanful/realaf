@@ -9,7 +9,8 @@
     // url: `${location.protocol}//${
     //   import.meta.env.VITE_UDP_HOST || location.hostname
     // }`,
-    port: 3000,
+    url: `${location.protocol}//${location.host}`,
+    port: null,
   })
 
   onMount(_ => {

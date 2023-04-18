@@ -5,7 +5,7 @@
 
   let bcan
   let fps = 0
-  let ch = geckos({
+  window.ch = geckos({
     // url: `${location.protocol}//${
     //   import.meta.env.VITE_UDP_HOST || location.hostname
     // }`,

@@ -5,7 +5,7 @@
 
   let bcan
   let fps = 0
-  window.ch = geckos({
+  let ch = geckos({
     // url: `${location.protocol}//${
     //   import.meta.env.VITE_UDP_HOST || location.hostname
     // }`,
@@ -19,6 +19,7 @@
         console.error(err.message)
         return
       }
+      console.log('connected')
 
       let S = new SCENE(bcan, ch)
       S.scene.registerAfterRender(_ => {

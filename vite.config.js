@@ -1,6 +1,7 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import unocss from 'unocss/vite'
-import { presetAttributify, presetUno, extractorSvelte } from 'unocss'
+import { presetAttributify, presetUno } from 'unocss'
+import extractorSvelte from '@unocss/extractor-svelte'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -10,7 +11,7 @@ export default {
   plugins: [
     unocss({
       presets: [presetAttributify(), presetUno()],
-      extractors: extractorSvelte,
+      extractors: [extractorSvelte()],
     }),
     svelte(),
   ],

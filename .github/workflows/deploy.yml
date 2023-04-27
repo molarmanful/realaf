@@ -2,6 +2,10 @@ name: DEPLOY
 
 on: push
 
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
 jobs:
   docker:
     runs-on: ubuntu-latest

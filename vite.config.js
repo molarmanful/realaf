@@ -17,6 +17,6 @@ export default {
   ],
   assetsInclude: 'src/scenes/assets/**',
   define: {
-    VITE_UDP_HOST: `"${process.env.VITE_UDP_HOST}"`
+    VITE_UDP_HOST: process.env.VITE_UDP_HOST
   },
 }

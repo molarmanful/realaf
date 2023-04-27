@@ -12,7 +12,6 @@ RUN mkdir /app
 WORKDIR /app
 
 ENV NODE_ENV production
-ARG VITE_UDP_HOST=localhost
 ENTRYPOINT [ "entrypoint.sh" ]
 
 COPY . .

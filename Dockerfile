@@ -15,7 +15,10 @@ ENV NODE_ENV production
 
 COPY . .
 
-RUN VITE_UDP_HOST="$(dig +short realaf.fly.dev):3000" npm install -g pnpm && pnpm i && pnpm run build
+RUN echo "VITE_UDP_HOST=$(dig +short realaf.fly.dev):3000" > .env && \
+  npm install -g pnpm && \
+  pnpm i && \
+  pnpm run build
 FROM debian:bullseye
 
 LABEL fly_launch_runtime="nodejs"

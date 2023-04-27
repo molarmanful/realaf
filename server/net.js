@@ -1,4 +1,4 @@
-import geckos from '@geckos.io/server'
+import geckos, { iceServers } from '@geckos.io/server'
 import { Worker } from 'node:worker_threads'
 import { SnapshotInterpolation } from '@geckos.io/snapshot-interpolation'
 import { snapModel } from '../common/schemas.js'
@@ -17,6 +17,7 @@ export class NET {
   IO(server) {
     let io = geckos({
       bindAddress: process.env.UDP_HOST,
+      iceServers: process.env.NODE_ENV == 'production' ? iceServers : [],
     })
     io.addServer(server)
 

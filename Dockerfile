@@ -12,10 +12,10 @@ RUN mkdir /app
 WORKDIR /app
 
 ENV NODE_ENV production
-ENTRYPOINT [ "entrypoint.sh" ]
 
 COPY . .
 
+ENTRYPOINT [ "entrypoint.sh" ]
 RUN npm install -g pnpm && pnpm i && pnpm run build
 FROM debian:bullseye
 

@@ -17,6 +17,20 @@ export class SCENE {
     S.SI = new SnapshotInterpolation(20)
     S.dpiScale = 1
 
+    S.movSpeed = 4
+    S.rotSpeed = 3
+    S.camH = 1
+    S.camR = VARS.camR
+    S.jumpForce = 7
+    S.airInf = .01
+    S.vel = B.Vector3.Zero()
+    S.rot = 0
+    S.grounded = false
+    S.boxSize = 1
+
+    S.boxes = {}
+    S.killQ = {}
+
     S.Engine()
     S.Scene()
 
@@ -32,20 +46,7 @@ export class SCENE {
     // S.Room()
 
     await S.Sandbox()
-
-    S.boxSize = 1
     S.Box()
-
-    S.movSpeed = 4
-    S.rotSpeed = 3
-    S.jumpForce = 7
-    S.airInf = .01
-    S.vel = B.Vector3.Zero()
-    S.rot = 0
-    S.grounded = false
-
-    S.boxes = {}
-    S.killQ = {}
 
     S.init()
 
@@ -72,21 +73,21 @@ export class SCENE {
   }
 
   Camera() {
-    let camera = new B.FollowCamera('camera', new B.Vector3(0, 10, 0), this.scene)
+    let camera = new B.FollowCamera('camera', new B.Vector3(0, 0, 0), this.scene, this.box)
     // camera.fov = .1
-    camera.minZ = 0
-    camera.heightOffset = 10
-    camera.lowerHeightOffsetLimit = -10
-    camera.upperHeightOffsetLimit = 10
+    // camera.minZ = 0
     camera.rotationOffset = camera.lowerRotationOffsetLimit = camera.upperRotationOffsetLimit = 180
-    this.setCamRadius(VARS.camR, camera)
+    SCENE.setCamRadius(VARS.camR, this.camH, camera)
     // camera.attachControl(this.canvas, true)
 
     this.camera = camera
   }
 
-  setCamRadius(r, camera) {
+  static setCamRadius(r, h, camera) {
     camera.radius = camera.lowerRadiusLimit = camera.upperRadiusLimit = r
+    camera.heightOffset = h * r
+    camera.lowerHeightOffsetLimit = -r
+    camera.upperHeightOffsetLimit = r
   }
 
   RPipe() {
@@ -109,11 +110,13 @@ export class SCENE {
   }
 
   Light() {
-    let hlight = new B.HemisphericLight('light', new B.Vector3(0, 1, .5), this.scene)
-    hlight.intensity = .5
+    let hlight = new B.HemisphericLight('hlight', new B.Vector3(0, 1, 0), this.scene)
+    hlight.intensity = .2
+
     let light = new B.DirectionalLight('light', new B.Vector3(-1, -4, -2), this.scene)
     light.intensity = 1.4
 
+    this.hlight = hlight
     this.light = light
   }
 
@@ -151,6 +154,10 @@ export class SCENE {
     for (let mesh of sb.meshes) {
       this.enableShadows(mesh)
       mesh.checkCollisions = true
+
+      if (mesh.name == 'walls') {
+        mesh.visibility = 0
+      }
     }
 
     this.sb = sb
@@ -208,9 +215,10 @@ export class SCENE {
       })
 
       this.scene.registerBeforeRender(_ => {
-        this.play()
+        let dt = this.scene.deltaTime * .001
+        this.play(dt)
         this.snapInter()
-        this.camComp()
+        this.camComp(dt)
       })
 
       this.tickLoop(_ => {
@@ -242,7 +250,7 @@ export class SCENE {
   bounce() {
     if (!this.grounded) {
       let norm = this.box.collider.slidePlaneNormal.normalize()
-      if (Math.abs(norm.y) < .99) {
+      if (norm.y < .99) {
         norm.rotateByQuaternionToRef(
           B.Quaternion.FromEulerAngles(...this.box.rotation.scale(-1).asArray()),
           norm
@@ -289,8 +297,7 @@ export class SCENE {
     loop.addEventListener('message', f)
   }
 
-  play() {
-    let dt = this.scene.deltaTime * .001
+  play(dt) {
     this.grounded = this.checkGrounded()
     this.vel.y -= 9.81 * dt
 
@@ -307,16 +314,18 @@ export class SCENE {
     this.rot = 0
   }
 
-  camComp() {
+  camComp(dt) {
     let d = this.camera.globalPosition.subtract(this.box.position)
     let dn = d.normalizeToNew()
+    let len = new B.Vector2(1, this.camH).length() * VARS.camR
     let ray = new B.Ray(
       this.box.position,
       dn,
-      d.length()
+      len
     )
     let pick = this.scene.pickWithRay(ray)
-    this.setCamRadius(pick.hit ? pick.distance : VARS.camR, this.camera)
+
+    SCENE.setCamRadius(pick.hit ? pick.distance : VARS.camR, this.camH, this.camera)
   }
 
   send() {
@@ -360,10 +369,10 @@ export class SCENE {
         else this.vel.x = Math.min(this.movSpeed, this.vel.x + this.movSpeed * this.airInf)
       },
       KeyF: _ => {
-        this.camera.heightOffset -= .1
+        this.camH = Math.max(-1, this.camH - .01)
       },
       KeyR: _ => {
-        this.camera.heightOffset += .1
+        this.camH = Math.min(1, this.camH + .01)
       }
     }
 

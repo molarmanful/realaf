@@ -1,47 +1,55 @@
 import * as B from '@babylonjs/core'
 import { GridMaterial } from '@babylonjs/materials'
+import '@babylonjs/loaders'
 import tick from './tick?worker'
 import { SnapshotInterpolation } from '@geckos.io/snapshot-interpolation'
 import { snapModel } from '../../common/schemas'
 import VARS from '../../common/config'
+import sandbox from './assets/sandbox.glb'
 
 export class SCENE {
-  constructor(canvas, ch) {
-    this.B = B
-    this.canvas = canvas
-    this.ch = ch
-    this.SI = new SnapshotInterpolation(20)
-    this.dpiScale = 1
+  static async build(canvas, ch) {
+    let S = new SCENE()
 
-    this.Engine()
-    this.Scene()
+    S.B = B
+    S.canvas = canvas
+    S.ch = ch
+    S.SI = new SnapshotInterpolation(20)
+    S.dpiScale = 1
 
-    this.Camera()
-    this.RPipe()
+    S.Engine()
+    S.Scene()
 
-    // this.Glow()
+    S.Camera()
+    S.RPipe()
 
-    this.Light()
-    this.Shadow()
+    // S.Glow()
 
-    this.roomSize = 40
-    this.Room()
+    S.Light()
+    S.Shadow()
 
-    this.boxSize = 1
-    this.Box()
+    // S.roomSize = 40
+    // S.Room()
 
-    this.movSpeed = 4
-    this.rotSpeed = 3
-    this.jumpForce = 7
-    this.airInf = .01
-    this.vel = B.Vector3.Zero()
-    this.rot = 0
-    this.grounded = false
+    await S.Sandbox()
 
-    this.boxes = {}
-    this.killQ = {}
+    S.boxSize = 1
+    S.Box()
 
-    this.init()
+    S.movSpeed = 4
+    S.rotSpeed = 3
+    S.jumpForce = 7
+    S.airInf = .01
+    S.vel = B.Vector3.Zero()
+    S.rot = 0
+    S.grounded = false
+
+    S.boxes = {}
+    S.killQ = {}
+
+    S.init()
+
+    return S
   }
 
   Engine() {
@@ -67,13 +75,17 @@ export class SCENE {
     let camera = new B.FollowCamera('camera', new B.Vector3(0, 10, 0), this.scene)
     // camera.fov = .1
     camera.heightOffset = 10
-    camera.lowerHeightOffsetLimit = 0
+    camera.lowerHeightOffsetLimit = -10
     camera.upperHeightOffsetLimit = 10
     camera.rotationOffset = camera.lowerRotationOffsetLimit = camera.upperRotationOffsetLimit = 180
-    camera.radius = camera.lowerRadiusLimit = camera.upperRadiusLimit = 10
-    // camera.attachControl(this.canvas, true)
+    this.setCamRadius(VARS.camR, camera)
+    camera.attachControl(this.canvas, true)
 
     this.camera = camera
+  }
+
+  setCamRadius(r, camera) {
+    camera.radius = camera.lowerRadiusLimit = camera.upperRadiusLimit = r
   }
 
   RPipe() {
@@ -96,7 +108,8 @@ export class SCENE {
   }
 
   Light() {
-    // let light = new B.HemisphericLight('light', new B.Vector3(0, 1, .5), this.scene)
+    let hlight = new B.HemisphericLight('light', new B.Vector3(0, 1, .5), this.scene)
+    hlight.intensity = .5
     let light = new B.DirectionalLight('light', new B.Vector3(-1, -4, -2), this.scene)
     light.intensity = 1.4
 
@@ -130,6 +143,16 @@ export class SCENE {
     room.material = new GridMaterial('', this.scene)
 
     this.room = room
+  }
+
+  async Sandbox() {
+    let sb = await B.SceneLoader.ImportMeshAsync('', sandbox, void 0, this.scene)
+    for (let mesh of sb.meshes) {
+      this.enableShadows(mesh)
+      mesh.checkCollisions = true
+    }
+
+    this.sb = sb
   }
 
   Box() {
@@ -168,8 +191,9 @@ export class SCENE {
   }
 
   init() {
-    this.ch.on('spawn', id => {
+    this.ch.on('spawn', ({ id, data }) => {
       this.id = id
+      this.updateBox(this.box, data)
       this.boxes[id] = this.box
 
       this.ch.on('rawMessage', buf => {
@@ -182,11 +206,10 @@ export class SCENE {
         this.bounce()
       })
 
-      let first = true
       this.scene.registerBeforeRender(_ => {
         this.play()
-        this.snapInter(first)
-        first = false
+        this.snapInter()
+        this.camComp()
       })
 
       this.tickLoop(_ => {
@@ -218,7 +241,7 @@ export class SCENE {
   bounce() {
     if (!this.grounded) {
       let norm = this.box.collider.slidePlaneNormal.normalize()
-      if (norm.x != 0 || norm.z != 0) {
+      if (Math.abs(norm.y) < .99) {
         norm.rotateByQuaternionToRef(
           B.Quaternion.FromEulerAngles(...this.box.rotation.scale(-1).asArray()),
           norm
@@ -245,7 +268,6 @@ export class SCENE {
           if (this.killQ[id]) this.kill(id)
           else {
             if (!this.boxes[id]) {
-              console.log(id)
               this.boxes[id] = this.makeBox(id)
             }
 
@@ -282,6 +304,18 @@ export class SCENE {
     this.box.rotation.y += this.rot * dt
 
     this.rot = 0
+  }
+
+  camComp() {
+    let d = this.camera.globalPosition.subtract(this.box.position)
+    let dn = d.normalizeToNew()
+    let ray = new B.Ray(
+      this.box.position,
+      dn,
+      d.length()
+    )
+    let pick = this.scene.pickWithRay(ray)
+    this.setCamRadius(pick.hit ? pick.distance : VARS.camR, this.camera)
   }
 
   send() {

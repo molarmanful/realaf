@@ -33,10 +33,10 @@ export class NET {
 
       this.state[id] = {
         hue: Math.random() * 360 | 0,
-        pos: [0, 5, 0],
+        pos: [0, VARS.spawnY, 0],
         rot: 0,
       }
-      ch.emit('spawn', id, { reliable: true })
+      ch.emit('spawn', {id, data: this.state[id]}, { reliable: true })
       this.sendState()
 
       ch.on('data', data => {

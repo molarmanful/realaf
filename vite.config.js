@@ -15,8 +15,5 @@ export default {
     }),
     svelte(),
   ],
-  assetsInclude: 'src/scenes/assets/**',
-  define: {
-    VITE_UDP_HOST: process.env.VITE_UDP_HOST
-  },
+  assetsInclude: ['client/scenes/assets/**'],
 }

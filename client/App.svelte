@@ -6,21 +6,21 @@
   let bcan
   let fps = 0
   let ch = geckos({
-    url: `${location.protocol}//${
-      import.meta.env.VITE_UDP_HOST || location.host
+    url: `${location.protocol}//${location.host}${
+      import.meta.env.PROD ? ':3000' : ''
     }`,
     port: null,
   })
 
   onMount(_ => {
-    ch.onConnect(err => {
+    ch.onConnect(async err => {
       if (err) {
         console.error(err.message)
         return
       }
       console.log('connected')
 
-      let S = new SCENE(bcan, ch)
+      let S = await SCENE.build(bcan, ch)
       S.scene.registerAfterRender(_ => {
         fps = S.engine.getFps() | 0
       })

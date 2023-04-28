@@ -74,12 +74,13 @@ export class SCENE {
   Camera() {
     let camera = new B.FollowCamera('camera', new B.Vector3(0, 10, 0), this.scene)
     // camera.fov = .1
+    camera.minZ = 0
     camera.heightOffset = 10
     camera.lowerHeightOffsetLimit = -10
     camera.upperHeightOffsetLimit = 10
     camera.rotationOffset = camera.lowerRotationOffsetLimit = camera.upperRotationOffsetLimit = 180
     this.setCamRadius(VARS.camR, camera)
-    camera.attachControl(this.canvas, true)
+    // camera.attachControl(this.canvas, true)
 
     this.camera = camera
   }
@@ -358,6 +359,12 @@ export class SCENE {
         if (this.grounded) this.vel.x = this.movSpeed
         else this.vel.x = Math.min(this.movSpeed, this.vel.x + this.movSpeed * this.airInf)
       },
+      KeyF: _ => {
+        this.camera.heightOffset -= .1
+      },
+      KeyR: _ => {
+        this.camera.heightOffset += .1
+      }
     }
 
     for (let k in map) {

@@ -164,11 +164,13 @@ export class SCENE {
         continue
       }
 
-      this.enableShadows(mesh)
       mesh.checkCollisions = true
 
       if (mesh.name == 'walls') {
         mesh.visibility = .5
+      }
+      else {
+        this.enableShadows(mesh)
       }
     }
 

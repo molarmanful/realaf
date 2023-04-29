@@ -6,7 +6,8 @@ import { SnapshotInterpolation } from '@geckos.io/snapshot-interpolation'
 import { snapModel } from '../../common/schemas'
 import VARS from '../../common/config'
 import sandbox from './assets/sandbox.glb'
-import env from './assets/environment.env'
+import dusk from './assets/dusk.env'
+import clouds from './assets/clouds.env'
 
 export class SCENE {
   static async build(canvas, ch) {
@@ -67,7 +68,7 @@ export class SCENE {
     let scene = new B.Scene(this.engine)
     scene.clearColor = B.Color3.Black().toLinearSpace()
     scene.collisionsEnabled = true
-    scene.environmentTexture = new B.CubeTexture(env, scene)
+    scene.environmentTexture = new B.CubeTexture(dusk, scene)
 
     this.scene = scene
   }
@@ -77,7 +78,8 @@ export class SCENE {
 
     let mat = new B.StandardMaterial('', this.scene)
     mat.backFaceCulling = false
-    mat.reflectionTexture = this.scene.environmentTexture.clone()
+    // mat.reflectionTexture = this.scene.environmentTexture.clone()
+    mat.reflectionTexture = new B.CubeTexture(clouds, this.scene)
     mat.reflectionTexture.coordinatesMode = B.Texture.SKYBOX_MODE
     mat.diffuseColor = mat.specularColor = B.Color3.Black()
     sky.material = mat
@@ -168,6 +170,8 @@ export class SCENE {
 
       if (mesh.name == 'walls') {
         mesh.visibility = .5
+        mesh.material = mesh.material.clone()
+        mesh.material.albedoColor = new B.Color3(.8, 0, 1)
         continue
       }
 
@@ -196,7 +200,7 @@ export class SCENE {
   }
 
   updateBox(b, data) {
-    b.material.diffuseColor = B.Color3.FromHSV(data.hue, 1, 1)
+    b.material.diffuseColor = B.Color3.FromHSV(data.hue, .2 * (1 + !!this.fast), 1)
     b.position = new B.Vector3(...data.pos)
     b.rotation.y = data.rot
   }

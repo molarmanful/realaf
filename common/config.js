@@ -3,5 +3,4 @@ export default {
   cTicks: 60,
   tickDiv: 3n,
   spawnY: 25,
-  camR: 10,
 }

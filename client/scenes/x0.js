@@ -6,6 +6,7 @@ import { SnapshotInterpolation } from '@geckos.io/snapshot-interpolation'
 import { snapModel } from '../../common/schemas'
 import VARS from '../../common/config'
 import sandbox from './assets/sandbox.glb'
+import env from './assets/environment.env'
 
 export class SCENE {
   static async build(canvas, ch) {
@@ -17,15 +18,12 @@ export class SCENE {
     S.SI = new SnapshotInterpolation(20)
     S.dpiScale = 1
 
-    S.movSpeed = 4
-    S.rotSpeed = 3
-    S.camH = 1
-    S.camR = VARS.camR
+    S.movSpeed = 2
     S.jumpForce = 7
     S.airInf = .01
     S.vel = B.Vector3.Zero()
-    S.rot = 0
     S.grounded = false
+    S.fast = true
     S.boxSize = 1
 
     S.boxes = {}
@@ -33,11 +31,12 @@ export class SCENE {
 
     S.Engine()
     S.Scene()
+    S.Sky()
 
     S.Camera()
     S.RPipe()
 
-    // S.Glow()
+    S.Glow()
 
     S.Light()
     S.Shadow()
@@ -68,26 +67,34 @@ export class SCENE {
     let scene = new B.Scene(this.engine)
     scene.clearColor = B.Color3.Black().toLinearSpace()
     scene.collisionsEnabled = true
+    scene.environmentTexture = new B.CubeTexture(env, scene)
 
     this.scene = scene
   }
 
-  Camera() {
-    let camera = new B.FollowCamera('camera', new B.Vector3(0, 0, 0), this.scene, this.box)
-    // camera.fov = .1
-    // camera.minZ = 0
-    camera.rotationOffset = camera.lowerRotationOffsetLimit = camera.upperRotationOffsetLimit = 180
-    SCENE.setCamRadius(VARS.camR, this.camH, camera)
-    // camera.attachControl(this.canvas, true)
+  Sky() {
+    let sky = B.MeshBuilder.CreateBox('sky', { size: 1000 }, this.scene)
 
-    this.camera = camera
+    let mat = new B.StandardMaterial('', this.scene)
+    mat.backFaceCulling = false
+    mat.reflectionTexture = this.scene.environmentTexture.clone()
+    mat.reflectionTexture.coordinatesMode = B.Texture.SKYBOX_MODE
+    mat.diffuseColor = mat.specularColor = B.Color3.Black()
+    sky.material = mat
+
+    this.sky = sky
   }
 
-  static setCamRadius(r, h, camera) {
-    camera.radius = camera.lowerRadiusLimit = camera.upperRadiusLimit = r
-    camera.heightOffset = h * r
-    camera.lowerHeightOffsetLimit = -r
-    camera.upperHeightOffsetLimit = r
+  Camera() {
+    let camera = new B.UniversalCamera('camera', B.Vector3.Zero(), this.scene)
+    camera.fov = 1
+    camera.minZ = .01
+    camera.speed = .2
+    camera.inputs.clear()
+    camera.inputs.addMouse()
+    camera.attachControl(this.canvas)
+
+    this.camera = camera
   }
 
   RPipe() {
@@ -110,13 +117,13 @@ export class SCENE {
   }
 
   Light() {
-    let hlight = new B.HemisphericLight('hlight', new B.Vector3(0, 1, 0), this.scene)
-    hlight.intensity = .2
+    // let hlight = new B.HemisphericLight('hlight', new B.Vector3(1, 4, 2), this.scene)
+    // hlight.intensity = .1
 
     let light = new B.DirectionalLight('light', new B.Vector3(-1, -4, -2), this.scene)
     light.intensity = 1.4
 
-    this.hlight = hlight
+    // this.hlight = hlight
     this.light = light
   }
 
@@ -152,11 +159,16 @@ export class SCENE {
   async Sandbox() {
     let sb = await B.SceneLoader.ImportMeshAsync('', sandbox, void 0, this.scene)
     for (let mesh of sb.meshes) {
+      if (mesh.name == 'ref') {
+        mesh.dispose()
+        continue
+      }
+
       this.enableShadows(mesh)
       mesh.checkCollisions = true
 
       if (mesh.name == 'walls') {
-        mesh.visibility = 0
+        mesh.visibility = .5
       }
     }
 
@@ -166,7 +178,6 @@ export class SCENE {
   Box() {
     let box = this.makeBox()
     box.isPickable = false
-    this.camera.lockedTarget = box
 
     this.box = box
   }
@@ -215,10 +226,14 @@ export class SCENE {
       })
 
       this.scene.registerBeforeRender(_ => {
+        this.engine.enterPointerlock()
+        this.scene.onPointerDown = _ => {
+          if (!this.engine.isPointerLock) this.engine.enterPointerlock()
+        }
+
         let dt = this.scene.deltaTime * .001
         this.play(dt)
         this.snapInter()
-        this.camComp(dt)
       })
 
       this.tickLoop(_ => {
@@ -241,6 +256,7 @@ export class SCENE {
       down[e.code] = true
     })
     addEventListener('keyup', e => {
+      if (e.code == 'ShiftLeft') this.fast = !this.fast
       delete down[e.code]
     })
 
@@ -309,23 +325,9 @@ export class SCENE {
         .scale(Math.max(Math.abs(this.vel.x), Math.abs(this.vel.z)) * dt)
     )
     this.box.moveWithCollisions(new B.Vector3(0, this.vel.y * dt, 0))
-    this.box.rotation.y += this.rot * dt
 
-    this.rot = 0
-  }
-
-  camComp(dt) {
-    let d = this.camera.globalPosition.subtract(this.box.position)
-    let dn = d.normalizeToNew()
-    let len = new B.Vector2(1, this.camH).length() * VARS.camR
-    let ray = new B.Ray(
-      this.box.position,
-      dn,
-      len
-    )
-    let pick = this.scene.pickWithRay(ray)
-
-    SCENE.setCamRadius(pick.hit ? pick.distance : VARS.camR, this.camH, this.camera)
+    this.camera.position = this.box.position
+    this.box.rotation.y = this.camera.rotation.y
   }
 
   send() {
@@ -351,14 +353,9 @@ export class SCENE {
         else this.vel.z = Math.max(-this.movSpeed, this.vel.z - this.movSpeed * this.airInf)
       },
       KeyW: _ => {
-        if (this.grounded) this.vel.z = this.movSpeed
-        else this.vel.z = Math.min(this.movSpeed, this.vel.z + this.movSpeed * this.airInf)
-      },
-      KeyQ: _ => {
-        this.rot -= this.rotSpeed
-      },
-      KeyE: _ => {
-        this.rot += this.rotSpeed
+        let mov = this.movSpeed * (1 + !!this.fast)
+        if (this.grounded) this.vel.z = mov
+        else this.vel.z = Math.min(Math.max(mov, this.vel.z), this.vel.z + mov * this.airInf)
       },
       KeyA: _ => {
         if (this.grounded) this.vel.x = -this.movSpeed
@@ -368,12 +365,6 @@ export class SCENE {
         if (this.grounded) this.vel.x = this.movSpeed
         else this.vel.x = Math.min(this.movSpeed, this.vel.x + this.movSpeed * this.airInf)
       },
-      KeyF: _ => {
-        this.camH = Math.max(-1, this.camH - .01)
-      },
-      KeyR: _ => {
-        this.camH = Math.min(1, this.camH + .01)
-      }
     }
 
     for (let k in map) {

@@ -168,10 +168,10 @@ export class SCENE {
 
       if (mesh.name == 'walls') {
         mesh.visibility = .5
+        continue
       }
-      else {
-        this.enableShadows(mesh)
-      }
+
+      this.enableShadows(mesh)
     }
 
     this.sb = sb
@@ -288,24 +288,23 @@ export class SCENE {
       ? this.SI.vault.get()
       : this.SI.calcInterpolation('hue(deg) x y z rot(rad)')
 
-    if (snap) {
-      for (let s of snap.state) {
-        let { id, hue, x, y, z, rot } = s
-        if (first || id != this.id) {
-          if (this.killQ[id]) this.kill(id)
-          else {
-            if (!this.boxes[id]) {
-              this.boxes[id] = this.makeBox(id)
-            }
-
-            this.updateBox(this.boxes[id], {
-              hue,
-              pos: [x, y, z],
-              rot,
-            })
-          }
-        }
+    if (!snap) return
+    for (let s of snap.state) {
+      let { id, hue, x, y, z, rot } = s
+      if (!(first || id != this.id)) continue
+      if (this.killQ[id]) {
+        this.kill(id)
+        continue
       }
+      if (!this.boxes[id]) {
+        this.boxes[id] = this.makeBox(id)
+      }
+
+      this.updateBox(this.boxes[id], {
+        hue,
+        pos: [x, y, z],
+        rot,
+      })
     }
   }
 

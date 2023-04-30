@@ -30,6 +30,10 @@ export class SCENE {
     S.boxes = {}
     S.killQ = {}
 
+    S.pads = {
+      0: 31,
+    }
+
     S.Engine()
     S.Scene()
     S.Sky()
@@ -89,7 +93,7 @@ export class SCENE {
 
   Camera() {
     let camera = new B.UniversalCamera('camera', B.Vector3.Zero(), this.scene)
-    camera.fov = 1
+    camera.fov = 1.6
     camera.minZ = .01
     camera.speed = .2
     camera.inputs.clear()
@@ -122,8 +126,9 @@ export class SCENE {
     // let hlight = new B.HemisphericLight('hlight', new B.Vector3(1, 4, 2), this.scene)
     // hlight.intensity = .1
 
-    let light = new B.DirectionalLight('light', new B.Vector3(-1, -4, -2), this.scene)
+    let light = new B.DirectionalLight('light', new B.Vector3(4, -2, -1), this.scene)
     light.intensity = 1.4
+    light.diffuse = new B.Color3(1, .8, .9)
 
     // this.hlight = hlight
     this.light = light
@@ -169,13 +174,18 @@ export class SCENE {
       mesh.checkCollisions = true
 
       if (mesh.name == 'walls') {
-        mesh.visibility = .5
+        mesh.visibility = .69
         mesh.material = mesh.material.clone()
-        mesh.material.albedoColor = new B.Color3(.8, 0, 1)
+        mesh.material.albedoColor = new B.Color3(.8, .4, 1)
         continue
       }
 
       this.enableShadows(mesh)
+
+      if (mesh.name.startsWith('pad')) {
+        mesh.material = mesh.material.clone()
+        mesh.material.emissiveColor = B.Color3.FromHSV(180, .2, .2)
+      }
     }
 
     this.sb = sb
@@ -228,7 +238,7 @@ export class SCENE {
       this.listenKey()
 
       this.box.onCollideObservable.add((m, e) => {
-        this.bounce()
+        this.bounce(m)
       })
 
       this.scene.registerBeforeRender(_ => {
@@ -269,8 +279,13 @@ export class SCENE {
     this.down = down
   }
 
-  bounce() {
-    if (!this.grounded) {
+  bounce(m) {
+    if ((m.name + '').startsWith('pad')) {
+      this.vel.y = this.pads[m.name.slice(3)]
+      return
+    }
+
+    if (!this.grounded && this.down.Space) {
       let norm = this.box.collider.slidePlaneNormal.normalize()
       if (norm.y < .99) {
         norm.rotateByQuaternionToRef(

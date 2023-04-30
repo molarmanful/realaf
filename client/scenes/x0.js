@@ -24,7 +24,7 @@ export class SCENE {
     S.airInf = .01
     S.vel = B.Vector3.Zero()
     S.grounded = false
-    S.fast = true
+    S.fast = false
     S.boxSize = 1
 
     S.boxes = {}

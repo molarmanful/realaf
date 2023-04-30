@@ -26,6 +26,7 @@ export class SCENE {
     S.grounded = false
     S.fast = false
     S.boxSize = 1
+    S.skyRot = Math.PI / 6
 
     S.boxes = {}
     S.killQ = {}
@@ -39,12 +40,13 @@ export class SCENE {
     S.Sky()
 
     S.Camera()
-    S.RPipe()
+    // S.SSRPost()
+    S.Post()
 
     S.Glow()
 
     S.Light()
-    S.Shadow()
+    S.CShadow()
 
     // S.roomSize = 40
     // S.Room()
@@ -71,6 +73,8 @@ export class SCENE {
     scene.clearColor = B.Color3.Black().toLinearSpace()
     scene.collisionsEnabled = true
     scene.environmentTexture = new B.CubeTexture(dusk, scene)
+    scene.environmentTexture.rotationY = this.skyRot
+    scene.environmentIntensity = .69
 
     this.scene = scene
   }
@@ -83,6 +87,7 @@ export class SCENE {
     // mat.reflectionTexture = this.scene.environmentTexture.clone()
     mat.reflectionTexture = new B.CubeTexture(clouds, this.scene)
     mat.reflectionTexture.coordinatesMode = B.Texture.SKYBOX_MODE
+    mat.reflectionTexture.rotationY = this.skyRot
     mat.diffuseColor = mat.specularColor = B.Color3.Black()
     sky.material = mat
 
@@ -101,15 +106,21 @@ export class SCENE {
     this.camera = camera
   }
 
-  RPipe() {
+  Post() {
     let pipe = new B.DefaultRenderingPipeline('pipe', true, this.scene, [this.camera])
     pipe.samples = 4
     pipe.chromaticAberrationEnabled = true
     pipe.chromaticAberration.aberrationAmount = 6
     pipe.grainEnabled = true
     pipe.grain.animated = true
+    pipe.grain.intensity = 10
+  }
 
-    this.pipe = pipe
+  SSRPost() {
+    let pipe = new B.SSRRenderingPipeline('ssr', this.scene, [this.camera])
+    pipe.samples = 4
+    pipe.enableAutomaticThicknessComputation = true
+    pipe.thickness = 0
   }
 
   Glow() {
@@ -124,45 +135,39 @@ export class SCENE {
     // let hlight = new B.HemisphericLight('hlight', new B.Vector3(1, 4, 2), this.scene)
     // hlight.intensity = .1
 
-    let light = new B.DirectionalLight('light', new B.Vector3(4, -2, -1), this.scene)
+    let d = new B.Vector3(1, -.5, 0)
+      .applyRotationQuaternion(B.Quaternion.FromEulerAngles(0, -this.skyRot, 0))
+    let light = new B.DirectionalLight('light', d, this.scene)
+    light.falloffType = B.DirectionalLight.FALLOFF_PHYSICAL
     light.intensity = 1.4
-    light.diffuse = new B.Color3(1, .8, .9)
+    light.diffuse = B.Color3.FromHSV(10, 1, 1)
 
     // this.hlight = hlight
     this.light = light
   }
 
-  Shadow() {
-    let shadow = new B.CascadedShadowGenerator(2048, this.light)
-    shadow.usePercentageCloserFiltering = true
+  CShadow() {
+    let sg = new B.CascadedShadowGenerator(2048, this.light)
+    sg.usePercentageCloserFiltering = true
     // shadow.stabilizeCascades = true
-    shadow.lambda = 1
-    shadow.cascadeBlendPercentage = 0
-    shadow.shadowMaxZ = this.camera.maxZ
-    shadow.depthClamp = false
-    shadow.autoCalcDepthBounds = true
+    sg.lambda = 1
+    sg.cascadeBlendPercentage = 0
+    sg.shadowMaxZ = this.camera.maxZ
+    sg.depthClamp = false
+    sg.autoCalcDepthBounds = true
+    sg.penumbraDarkness = .2
 
-    this.shadow = shadow
+    this.sg = sg
   }
 
   enableShadows(m) {
-    this.shadow.getShadowMap().renderList.push(m)
+    this.sg.getShadowMap().renderList.push(m)
     m.receiveShadows = true
-  }
-
-  Room() {
-    let room = B.MeshBuilder.CreateBox('room', { size: this.roomSize, sideOrientation: B.Mesh.BACKSIDE }, this.scene)
-    room.position.y = this.roomSize / 2
-    this.enableShadows(room)
-    room.checkCollisions = true
-
-    room.material = new GridMaterial('', this.scene)
-
-    this.room = room
   }
 
   async Sandbox() {
     let sb = await B.SceneLoader.ImportMeshAsync('', sandbox, void 0, this.scene)
+
     for (let mesh of sb.meshes) {
       if (mesh.name == 'ref') {
         mesh.dispose()
@@ -171,22 +176,30 @@ export class SCENE {
 
       mesh.checkCollisions = !mesh.name.includes('nocoll')
 
-      this.enableShadows(mesh)
-
-      if (mesh.name.startsWith('pad')) {
-        mesh.material = mesh.material.clone()
-        mesh.material.emissiveColor = B.Color3.FromHSV(180, .2, .2)
-        continue
+      if (mesh.name.includes('walls')) {
+        mesh.receiveShadows = true
       }
+      else this.enableShadows(mesh)
 
-      if (mesh.name.includes('glass')) {
+      if (mesh.material) {
         let m = mesh.material = mesh.material.clone()
         m.metallic = 0
-        m.roughness = 0
-        m.subSurface.refractionTexture = this.sky.material.reflectionTexture
-        m.subSurface.isRefractionEnabled = true
-        m.subSurface.indexOfRefraction = 1.5
-        m.subSurface.tintColor = B.Color3.FromHSV(0, .05, 1)
+        m.roughness = .5
+
+        if (mesh.name.startsWith('pad')) {
+          m.emissiveColor = B.Color3.FromHSV(180, .2, .2)
+          continue
+        }
+
+        if (mesh.name.includes('glass')) {
+          m.metallic = 0
+          m.roughness = 0
+          m.subSurface.refractionTexture = this.sky.material.reflectionTexture
+          m.subSurface.isRefractionEnabled = true
+          m.subSurface.indexOfRefraction = 1.5
+          m.subSurface.tintColor = B.Color3.FromHSV(350, .1, 1)
+          continue
+        }
       }
     }
 
@@ -207,8 +220,8 @@ export class SCENE {
     b.ellipsoid = B.Vector3.One().scale(this.boxSize / 2)
     b.checkCollisions = true
     b.material = new B.PBRMaterial('', this.scene)
-    b.material.metallic = 1
-    b.material.roughness = .69
+    b.material.metallic = 0
+    b.material.roughness = .2
 
     return b
   }
@@ -354,7 +367,7 @@ export class SCENE {
     )
     this.box.moveWithCollisions(new B.Vector3(0, this.vel.y * dt, 0))
 
-    this.camera.position = this.box.position
+    this.camera.position = this.box.position.add(new B.Vector3(0, .4, 0))
     this.box.rotation.y = this.camera.rotation.y
   }
 

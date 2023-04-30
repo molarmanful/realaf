@@ -28,34 +28,36 @@ export class NET {
     })
 
     io.onConnection(ch => {
-      this.pop++
-      let id = this.idC
-
-      this.state[id] = {
-        hue: Math.random() * 360 | 0,
-        pos: [0, VARS.spawnY, 0],
-        rot: 0,
-      }
-      ch.emit('spawn', {id, data: this.state[id]}, { reliable: true })
-      this.sendState()
-
-      ch.on('data', data => {
-        this.state[id] = data
-      })
-
-      ch.onDisconnect(_ => {
-        this.pop--
-        if (this.pop <= 0) {
-          this.idC = 0
-          this.pop = 0
+      ch.on('hello', _ => {
+        this.pop++
+        let id = this.idC
+        this.state[id] = {
+          hue: Math.random() * 360 | 0,
+          pos: [0, VARS.spawnY, 0],
+          rot: 0,
         }
 
-        delete this.state[id]
-        io.emit('leave', id, { reliable: true })
-      })
+        ch.emit('spawn', { id, data: this.state[id] }, { reliable: true })
+        this.sendState()
 
-      this.idC++
-      this.idC %= 65535
+        ch.on('data', data => {
+          this.state[id] = data
+        })
+
+        ch.onDisconnect(_ => {
+          this.pop--
+          if (this.pop <= 0) {
+            this.idC = 0
+            this.pop = 0
+          }
+
+          delete this.state[id]
+          io.emit('leave', id, { reliable: true })
+        })
+
+        this.idC++
+        this.idC %= 65535
+      })
     })
 
     this.io = io

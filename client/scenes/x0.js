@@ -52,8 +52,6 @@ export class SCENE {
     await S.Sandbox()
     S.Box()
 
-    S.init()
-
     return S
   }
 
@@ -95,7 +93,7 @@ export class SCENE {
     let camera = new B.UniversalCamera('camera', B.Vector3.Zero(), this.scene)
     camera.fov = 1.6
     camera.minZ = .01
-    camera.speed = .2
+    camera.speed = .1
     camera.inputs.clear()
     camera.inputs.addMouse()
     camera.attachControl(this.canvas)
@@ -171,20 +169,24 @@ export class SCENE {
         continue
       }
 
-      mesh.checkCollisions = true
-
-      if (mesh.name == 'walls') {
-        mesh.visibility = .69
-        mesh.material = mesh.material.clone()
-        mesh.material.albedoColor = new B.Color3(.8, .4, 1)
-        continue
-      }
+      mesh.checkCollisions = !mesh.name.includes('nocoll')
 
       this.enableShadows(mesh)
 
       if (mesh.name.startsWith('pad')) {
         mesh.material = mesh.material.clone()
         mesh.material.emissiveColor = B.Color3.FromHSV(180, .2, .2)
+        continue
+      }
+
+      if (mesh.name.includes('glass')) {
+        let m = mesh.material = mesh.material.clone()
+        m.metallic = 0
+        m.roughness = 0
+        m.subSurface.refractionTexture = this.sky.material.reflectionTexture
+        m.subSurface.isRefractionEnabled = true
+        m.subSurface.indexOfRefraction = 1.5
+        m.subSurface.tintColor = B.Color3.FromHSV(0, .05, 1)
       }
     }
 
@@ -204,13 +206,15 @@ export class SCENE {
     b.position = B.Vector3.Zero()
     b.ellipsoid = B.Vector3.One().scale(this.boxSize / 2)
     b.checkCollisions = true
-    b.material = new B.StandardMaterial('', this.scene)
+    b.material = new B.PBRMaterial('', this.scene)
+    b.material.metallic = 1
+    b.material.roughness = .69
 
     return b
   }
 
   updateBox(b, data) {
-    b.material.diffuseColor = B.Color3.FromHSV(data.hue, .2 * (1 + !!this.fast), 1)
+    b.material.albedoColor = B.Color3.FromHSV(data.hue, .2, 1)
     b.position = new B.Vector3(...data.pos)
     b.rotation.y = data.rot
   }
@@ -226,6 +230,7 @@ export class SCENE {
   }
 
   init() {
+    this.ch.emit('hello')
     this.ch.on('spawn', ({ id, data }) => {
       this.id = id
       this.updateBox(this.box, data)
@@ -242,7 +247,6 @@ export class SCENE {
       })
 
       this.scene.registerBeforeRender(_ => {
-        this.engine.enterPointerlock()
         this.scene.onPointerDown = _ => {
           if (!this.engine.isPointerLock) this.engine.enterPointerlock()
         }
@@ -272,7 +276,6 @@ export class SCENE {
       down[e.code] = true
     })
     addEventListener('keyup', e => {
-      if (e.code == 'ShiftLeft') this.fast = !this.fast
       delete down[e.code]
     })
 
@@ -281,11 +284,16 @@ export class SCENE {
 
   bounce(m) {
     if ((m.name + '').startsWith('pad')) {
-      this.vel.y = this.pads[m.name.slice(3)]
+      this.vel = new B.Vector3(0, this.pads[m.name.slice(3)], 0)
       return
     }
 
-    if (!this.grounded && this.down.Space) {
+    if (!this.grounded) {
+      if (!this.down.Space) {
+        return
+      }
+
+
       let norm = this.box.collider.slidePlaneNormal.normalize()
       if (norm.y < .99) {
         norm.rotateByQuaternionToRef(
@@ -352,13 +360,14 @@ export class SCENE {
 
   send() {
     this.ch.emit('data', {
-      hue: this.box.material.diffuseColor.toHSV().r,
+      hue: this.box.material.albedoColor.toHSV().r,
       pos: this.box.position.asArray(),
       rot: this.box.rotation.y,
     })
   }
 
   act() {
+    this.fast = false
     if (this.grounded) {
       this.vel.x = 0
       this.vel.z = 0
@@ -367,6 +376,9 @@ export class SCENE {
     let map = {
       Space: _ => {
         if (this.grounded) this.vel.y = this.jumpForce
+      },
+      ShiftLeft: _ => {
+        this.fast = true
       },
       KeyS: _ => {
         if (this.grounded) this.vel.z = -this.movSpeed

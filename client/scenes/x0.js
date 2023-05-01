@@ -33,6 +33,7 @@ export class SCENE {
 
     S.pads = {
       0: 31,
+      1: 31,
     }
 
     S.Engine()
@@ -181,6 +182,13 @@ export class SCENE {
       }
       else this.enableShadows(mesh)
 
+      if (mesh.name.startsWith('fan')) {
+        this.scene.onBeforeRenderObservable.add(_ => {
+          console.log(mesh.name, mesh.rotation)
+          mesh.rotate(B.Vector3.Forward(), .5)
+        })
+      }
+
       if (mesh.material) {
         let m = mesh.material = mesh.material.clone()
         m.metallic = 0
@@ -259,7 +267,7 @@ export class SCENE {
         this.bounce(m)
       })
 
-      this.scene.registerBeforeRender(_ => {
+      this.scene.onBeforeRenderObservable.add(_ => {
         this.scene.onPointerDown = _ => {
           if (!this.engine.isPointerLock) this.engine.enterPointerlock()
         }

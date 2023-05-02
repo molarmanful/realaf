@@ -1,5 +1,4 @@
 import * as B from '@babylonjs/core'
-import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
 import tick from './tick?worker'
 import { SnapshotInterpolation } from '@geckos.io/snapshot-interpolation'
@@ -27,6 +26,7 @@ export class SCENE {
     S.fast = false
     S.boxSize = 1
     S.skyRot = Math.PI / 6
+    S.sbPos = B.Vector3.Zero()
 
     S.boxes = {}
     S.killQ = {}
@@ -34,6 +34,7 @@ export class SCENE {
     S.pads = {
       0: 31,
       1: 31,
+      2: 22,
     }
 
     S.Engine()
@@ -81,18 +82,19 @@ export class SCENE {
   }
 
   Sky() {
-    let sky = B.MeshBuilder.CreateBox('sky', { size: 1000 }, this.scene)
+    // let sky = B.MeshBuilder.CreateBox('sky', { size: 1000, sideOrientation: B.Mesh.BACKSIDE }, this.scene)
 
     let mat = new B.StandardMaterial('', this.scene)
-    mat.backFaceCulling = false
-    // mat.reflectionTexture = this.scene.environmentTexture.clone()
-    mat.reflectionTexture = new B.CubeTexture(clouds, this.scene)
-    mat.reflectionTexture.coordinatesMode = B.Texture.SKYBOX_MODE
-    mat.reflectionTexture.rotationY = this.skyRot
     mat.diffuseColor = mat.specularColor = B.Color3.Black()
-    sky.material = mat
+    // let tx = mat.reflectionTexture = this.scene.environmentTexture.clone()
+    let tx = /* mat.reflectionTexture = */ new B.CubeTexture(clouds, this.scene)
+    tx.coordinatesMode = B.Texture.SKYBOX_MODE
+    // tx.boundingBoxSize = B.Vector3.One().scale(1e4)
+    tx.rotationY = this.skyRot
+    // sky.material = mat
 
-    this.sky = sky
+    this.skyTx = tx
+    // this.sky = sky
   }
 
   Camera() {
@@ -136,15 +138,20 @@ export class SCENE {
     // let hlight = new B.HemisphericLight('hlight', new B.Vector3(1, 4, 2), this.scene)
     // hlight.intensity = .1
 
-    let d = new B.Vector3(1, -.5, 0)
-      .applyRotationQuaternion(B.Quaternion.FromEulerAngles(0, -this.skyRot, 0))
-    let light = new B.DirectionalLight('light', d, this.scene)
+    let light = new B.DirectionalLight('light', B.Vector3.Zero(), this.scene)
+    this.rotDir(light)
     light.falloffType = B.DirectionalLight.FALLOFF_PHYSICAL
     light.intensity = 1.4
     light.diffuse = B.Color3.FromHSV(10, 1, 1)
 
     // this.hlight = hlight
     this.light = light
+  }
+
+  rotDir(l) {
+    let d = new B.Vector3(1, -.5, 0)
+      .applyRotationQuaternion(B.Quaternion.FromEulerAngles(0, -this.skyRot, 0))
+    l.direction = d
   }
 
   CShadow() {
@@ -184,10 +191,13 @@ export class SCENE {
 
       if (mesh.name.startsWith('fan')) {
         this.scene.onBeforeRenderObservable.add(_ => {
-          console.log(mesh.name, mesh.rotation)
           mesh.rotate(B.Vector3.Forward(), .5)
         })
       }
+
+      let test = B.MeshBuilder.CreateBox('', { size: 100 }, this.scene)
+      test.position = new B.Vector3(0, 50, -300)
+      test.rotation = new B.Vector3(Math.PI / 3, Math.PI / 4)
 
       if (mesh.material) {
         let m = mesh.material = mesh.material.clone()
@@ -195,17 +205,24 @@ export class SCENE {
         m.roughness = .5
 
         if (mesh.name.startsWith('pad')) {
+          m.roughness = 0
           m.emissiveColor = B.Color3.FromHSV(180, .2, .2)
           continue
         }
 
         if (mesh.name.includes('glass')) {
-          m.metallic = 0
           m.roughness = 0
-          m.subSurface.refractionTexture = this.sky.material.reflectionTexture
           m.subSurface.isRefractionEnabled = true
           m.subSurface.indexOfRefraction = 1.5
           m.subSurface.tintColor = B.Color3.FromHSV(350, .1, 1)
+          // m.subSurface.refractionTexture = this.sky.material.reflectionTexture
+          let tx = m.subSurface.refractionTexture = this.skyTx
+
+          continue
+        }
+
+        if (mesh.name == 'cockpit') {
+          m.albedoColor = B.Color3.FromHSV(0, .2, 1)
           continue
         }
       }
@@ -222,14 +239,22 @@ export class SCENE {
   }
 
   makeBox(name = 'box') {
-    let b = B.MeshBuilder.CreateBox(name, { size: this.boxSize }, this.scene)
-    this.enableShadows(b)
-    b.position = B.Vector3.Zero()
-    b.ellipsoid = B.Vector3.One().scale(this.boxSize / 2)
-    b.checkCollisions = true
-    b.material = new B.PBRMaterial('', this.scene)
-    b.material.metallic = 0
-    b.material.roughness = .2
+    let b
+    if (this.box) {
+      b = this.box.clone(name)
+      b.material = this.box.material.clone()
+    }
+    else {
+      b = B.MeshBuilder.CreateBox(name, { size: this.boxSize }, this.scene)
+      this.enableShadows(b)
+      b.position = B.Vector3.Zero()
+      b.ellipsoid = B.Vector3.One().scale(this.boxSize / 2)
+      b.checkCollisions = true
+
+      b.material = new B.PBRMaterial('', this.scene)
+      b.material.metallic = 0
+      b.material.roughness = .2
+    }
 
     return b
   }
@@ -242,12 +267,8 @@ export class SCENE {
 
   checkGrounded() {
     let ray = new B.Ray(this.box.position, B.Vector3.Down(), this.boxSize / 2 + .01)
-    return this.scene.pickWithRay(ray).hit
-  }
-
-  checkCeiled() {
-    let ray = new B.Ray(this.box.position, B.Vector3.Up(), this.boxSize / 2 + .01)
-    return this.scene.pickWithRay(ray).hit
+    let pick = this.scene.pickWithRay(ray)
+    return pick.pickedMesh?.name
   }
 
   init() {
@@ -363,16 +384,24 @@ export class SCENE {
   }
 
   play(dt) {
-    this.grounded = this.checkGrounded()
-    this.vel.y -= 9.81 * dt
+    let gr = this.grounded = this.checkGrounded()
+    this.vel.y = gr && this.vel.y < 0 ? -1 : this.vel.y - 9.81 * dt
 
-    this.act()
+    this.act(dt)
 
-    this.box.moveWithCollisions(
-      this.box
-        .getDirection(new B.Vector3(this.vel.x, 0, this.vel.z))
-        .scale(Math.max(Math.abs(this.vel.x), Math.abs(this.vel.z)) * dt)
-    )
+    if (gr == 'cockpit') {
+      this.skyTx.boundingBoxPosition = this.sbPos
+      this.skyTx.rotationY = this.skyRot
+      this.rotDir(this.light)
+    }
+    else {
+      this.box.moveWithCollisions(
+        this.box
+          .getDirection(new B.Vector3(this.vel.x, 0, this.vel.z))
+          .scale(Math.max(Math.abs(this.vel.x), Math.abs(this.vel.z)) * dt)
+      )
+    }
+
     this.box.moveWithCollisions(new B.Vector3(0, this.vel.y * dt, 0))
 
     this.camera.position = this.box.position.add(new B.Vector3(0, .4, 0))
@@ -387,8 +416,9 @@ export class SCENE {
     })
   }
 
-  act() {
+  act(dt) {
     this.fast = false
+    if (this.grounded == 'cockpit') this.vel.y = 0
     if (this.grounded) {
       this.vel.x = 0
       this.vel.z = 0
@@ -396,27 +426,54 @@ export class SCENE {
 
     let map = {
       Space: _ => {
-        if (this.grounded) this.vel.y = this.jumpForce
+        if (!this.grounded) return
+        this.vel.y = this.jumpForce
       },
       ShiftLeft: _ => {
+        if (this.grounded == 'cockpit') return
         this.fast = true
       },
       KeyS: _ => {
-        if (this.grounded) this.vel.z = -this.movSpeed
-        else this.vel.z = Math.max(-this.movSpeed, this.vel.z - this.movSpeed * this.airInf)
+        if (this.grounded == 'cockpit') return
+        if (this.grounded) {
+          this.vel.z = -this.movSpeed
+          return
+        }
+        this.vel.z = Math.max(-this.movSpeed, this.vel.z - this.movSpeed * this.airInf)
       },
       KeyW: _ => {
+        if (this.grounded == 'cockpit') {
+          // this.sbPos.addInPlace(this.camera.getForwardRay(VARS.sbSpeed * dt).direction.scale(-1))
+          return
+        }
         let mov = this.movSpeed * (1 + !!this.fast)
-        if (this.grounded) this.vel.z = mov
-        else this.vel.z = Math.min(Math.max(mov, this.vel.z), this.vel.z + mov * this.airInf)
+        if (this.grounded) {
+          this.vel.z = mov
+          return
+        }
+        this.vel.z = Math.min(Math.max(mov, this.vel.z), this.vel.z + mov * this.airInf)
       },
       KeyA: _ => {
-        if (this.grounded) this.vel.x = -this.movSpeed
-        else this.vel.x = Math.max(-this.movSpeed, this.vel.x - this.movSpeed * this.airInf)
+        if (this.grounded == 'cockpit') {
+          this.skyRot -= VARS.sbTurn * dt
+          return
+        }
+        if (this.grounded) {
+          this.vel.x = -this.movSpeed
+          return
+        }
+        this.vel.x = Math.max(-this.movSpeed, this.vel.x - this.movSpeed * this.airInf)
       },
       KeyD: _ => {
-        if (this.grounded) this.vel.x = this.movSpeed
-        else this.vel.x = Math.min(this.movSpeed, this.vel.x + this.movSpeed * this.airInf)
+        if (this.grounded == 'cockpit') {
+          this.skyRot += VARS.sbTurn * dt
+          return
+        }
+        if (this.grounded) {
+          this.vel.x = this.movSpeed
+          return
+        }
+        this.vel.x = Math.min(this.movSpeed, this.vel.x + this.movSpeed * this.airInf)
       },
     }
 

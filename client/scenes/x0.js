@@ -60,8 +60,8 @@ export class SCENE {
   }
 
   Engine() {
-    let engine = new B.Engine(this.canvas, true)
-    engine.setHardwareScalingLevel(devicePixelRatio / this.dpiScale)
+    let engine = new B.Engine(this.canvas, true, {}, true)
+    // engine.setHardwareScalingLevel(devicePixelRatio / this.dpiScale)
 
     addEventListener('resize', _ => {
       engine.resize()
@@ -77,6 +77,7 @@ export class SCENE {
     scene.environmentTexture = new B.CubeTexture(dusk, scene)
     scene.environmentTexture.rotationY = this.skyRot
     scene.environmentIntensity = .69
+    scene.skipPointerMovePicking = true
 
     this.scene = scene
   }
@@ -84,8 +85,8 @@ export class SCENE {
   Sky() {
     // let sky = B.MeshBuilder.CreateBox('sky', { size: 1000, sideOrientation: B.Mesh.BACKSIDE }, this.scene)
 
-    let mat = new B.StandardMaterial('', this.scene)
-    mat.diffuseColor = mat.specularColor = B.Color3.Black()
+    // let mat = new B.StandardMaterial('', this.scene)
+    // mat.diffuseColor = mat.specularColor = B.Color3.Black()
     // let tx = mat.reflectionTexture = this.scene.environmentTexture.clone()
     let tx = /* mat.reflectionTexture = */ new B.CubeTexture(clouds, this.scene)
     tx.coordinatesMode = B.Texture.SKYBOX_MODE
@@ -183,6 +184,7 @@ export class SCENE {
       }
 
       mesh.checkCollisions = !mesh.name.includes('nocoll')
+      mesh.freezeWorldMatrix()
 
       if (mesh.name.includes('walls')) {
         mesh.receiveShadows = true
@@ -190,6 +192,7 @@ export class SCENE {
       else this.enableShadows(mesh)
 
       if (mesh.name.startsWith('fan')) {
+        mesh.unfreezeWorldMatrix()
         this.scene.onBeforeRenderObservable.add(_ => {
           mesh.rotate(B.Vector3.Forward(), .5)
         })
@@ -200,31 +203,39 @@ export class SCENE {
       test.rotation = new B.Vector3(Math.PI / 3, Math.PI / 4)
 
       if (mesh.material) {
-        let m = mesh.material = mesh.material.clone()
-        m.metallic = 0
-        m.roughness = .5
+        let mat = mesh.material
+        mat.metallic = 0
+        mat.roughness = .5
 
         if (mesh.name.startsWith('pad')) {
+          let m = mesh.material = mat.clone()
           m.roughness = 0
           m.emissiveColor = B.Color3.FromHSV(180, .2, .2)
+
           continue
         }
 
         if (mesh.name.includes('glass')) {
+          let m = mesh.material = mat.clone()
           m.roughness = 0
           m.subSurface.isRefractionEnabled = true
           m.subSurface.indexOfRefraction = 1.5
           m.subSurface.tintColor = B.Color3.FromHSV(350, .1, 1)
-          // m.subSurface.refractionTexture = this.sky.material.reflectionTexture
-          let tx = m.subSurface.refractionTexture = this.skyTx
+          m.subSurface.refractionTexture = this.skyTx
 
+          m.freeze()
           continue
         }
 
         if (mesh.name == 'cockpit') {
-          m.albedoColor = B.Color3.FromHSV(0, .2, 1)
+          let m = mesh.material = mat.clone()
+          m.albedoColor = B.Color3.FromHSV(0, .5, 1)
+
+          m.freeze()
           continue
         }
+
+        mat.freeze()
       }
     }
 
@@ -330,21 +341,16 @@ export class SCENE {
       return
     }
 
-    if (!this.grounded) {
-      if (!this.down.Space) {
-        return
-      }
+    if (this.grounded) return
+    if (this.down.Space) return
 
-
-      let norm = this.box.collider.slidePlaneNormal.normalize()
-      if (norm.y < .99) {
-        norm.rotateByQuaternionToRef(
-          B.Quaternion.FromEulerAngles(...this.box.rotation.scale(-1).asArray()),
-          norm
-        )
-        B.Vector3.ReflectToRef(this.vel, norm, this.vel)
-      }
-    }
+    let norm = this.box.collider.slidePlaneNormal.normalize()
+    if (norm.y > .99) return
+    norm.rotateByQuaternionToRef(
+      B.Quaternion.FromEulerAngles(...this.box.rotation.scale(-1).asArray()),
+      norm
+    )
+    B.Vector3.ReflectToRef(this.vel, norm, this.vel)
   }
 
   addSnap(buf) {
@@ -484,6 +490,7 @@ export class SCENE {
 
   kill(id) {
     if (this.boxes[id]) {
+      this.boxes[id].visibility = 0
       this.boxes[id].dispose()
       delete this.boxes[id]
       setTimeout(_ => {

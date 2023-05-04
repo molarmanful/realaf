@@ -342,7 +342,7 @@ export class SCENE {
     }
 
     if (this.grounded) return
-    if (this.down.Space) return
+    if (!this.down.Space) return
 
     let norm = this.box.collider.slidePlaneNormal.normalize()
     if (norm.y > .99) return

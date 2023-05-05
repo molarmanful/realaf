@@ -174,11 +174,38 @@ export class SCENE {
     m.receiveShadows = true
   }
 
+  RotFan(f) {
+    this.scene.onBeforeRenderObservable.add(_ => {
+      f.rotate(B.Vector3.Forward(), .5)
+    })
+  }
+
   async Sandbox() {
     let sb = await B.SceneLoader.ImportMeshAsync('', sandbox, void 0, this.scene)
 
+    let fan
     for (let mesh of sb.meshes) {
       if (mesh.name == 'ref') {
+        mesh.dispose()
+        continue
+      }
+
+      if (mesh.name.startsWith('fan')) {
+        if (mesh.name == 'fan') {
+          fan = mesh.clone()
+          mesh.isVisible = false
+        }
+
+        let f = fan.createInstance('fan')
+        f.setParent(fan.parent)
+        f.position = mesh.position.clone()
+        f.rotationQuaternion = mesh.rotationQuaternion.clone()
+        f.checkCollisions = true
+
+        this.scene.onBeforeRenderObservable.add(_ => {
+          f.rotate(B.Vector3.Forward(), .5)
+        })
+
         mesh.dispose()
         continue
       }
@@ -190,13 +217,6 @@ export class SCENE {
         mesh.receiveShadows = true
       }
       else this.enableShadows(mesh)
-
-      if (mesh.name.startsWith('fan')) {
-        mesh.unfreezeWorldMatrix()
-        this.scene.onBeforeRenderObservable.add(_ => {
-          mesh.rotate(B.Vector3.Forward(), .5)
-        })
-      }
 
       let test = B.MeshBuilder.CreateBox('', { size: 100 }, this.scene)
       test.position = new B.Vector3(0, 50, -300)
@@ -272,7 +292,9 @@ export class SCENE {
 
   updateBox(b, data) {
     b.material.albedoColor = B.Color3.FromHSV(data.hue, .2, 1)
-    b.position = new B.Vector3(...data.pos)
+    b.position.x = data.pos[0]
+    b.position.y = data.pos[1]
+    b.position.z = data.pos[2]
     b.rotation.y = data.rot
   }
 
@@ -337,12 +359,14 @@ export class SCENE {
 
   bounce(m) {
     if ((m.name + '').startsWith('pad')) {
-      this.vel = new B.Vector3(0, this.pads[m.name.slice(3)], 0)
+      this.vel.x = 0
+      this.vel.y = this.pads[m.name.slice(3)]
+      this.vel.z = 0
       return
     }
 
-    if (this.grounded) return
     if (!this.down.Space) return
+    if (this.grounded) return
 
     let norm = this.box.collider.slidePlaneNormal.normalize()
     if (norm.y > .99) return

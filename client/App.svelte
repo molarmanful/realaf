@@ -14,10 +14,10 @@
   let flow0, flow1
 
   let ch = geckos({
-    url: `${location.protocol}//${location.host}${
-      import.meta.env.PROD ? ':3000' : ''
-    }`,
-    port: null,
+    // url: `${location.protocol}//${location.host}${
+    //   import.meta.env.PROD ? ':3000' : ''
+    // }`,
+    port: 3000,
   })
 
   onMount(_ => {

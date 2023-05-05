@@ -15,8 +15,9 @@ ENV NODE_ENV production
 
 COPY . .
 
-RUN VITE_UDP_HOST="realaf.fly.dev:3000" \
-  npm install -g pnpm && pnpm i && pnpm run build
+# RUN VITE_UDP_HOST="realaf.fly.dev:3000" \
+#   npm install -g pnpm && pnpm i && pnpm run build
+RUN npm install -g pnpm && pnpm i && pnpm run build
 FROM debian:bullseye
 
 LABEL fly_launch_runtime="nodejs"
@@ -28,6 +29,6 @@ WORKDIR /app
 ENV NODE_ENV production
 ENV PATH /root/.volta/bin:$PATH
 ENV TCP_HOST 0.0.0.0
-ENV UDP_HOST fly-global-services
+# ENV UDP_HOST fly-global-services
 
 CMD [ "npm", "run", "start" ]

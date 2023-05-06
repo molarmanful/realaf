@@ -16,8 +16,9 @@ export class NET {
 
   IO(server) {
     let io = geckos({
-      bindAddress: process.env.UDP_HOST,
+      // bindAddress: process.env.UDP_HOST,
       iceServers: process.env.NODE_ENV == 'production' ? iceServers : [],
+      portRange: { min: 20000, max: 20100 },
     })
     io.addServer(server)
 

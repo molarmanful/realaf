@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  realaf:
+    image: molarmanful/realaf:latest
+    ports:
+      - "3000:3000/tcp"
+      - "1024-65530:1024-65530/udp"
+    restart: always

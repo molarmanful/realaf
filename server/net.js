@@ -29,6 +29,8 @@ export class NET {
     })
 
     io.onConnection(ch => {
+      console.log('+ ', ch.id)
+
       ch.on('hello', _ => {
         this.pop++
         let id = this.idC
@@ -54,6 +56,7 @@ export class NET {
 
           delete this.state[id]
           io.emit('leave', id, { reliable: true })
+          console.log('- ', ch.id)
         })
 
         this.idC++

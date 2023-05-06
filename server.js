@@ -26,7 +26,7 @@ if (process.argv[1] == fileURLToPath(import.meta.url)) {
   let server = await main()
   new NET(server.server)
   await server.listen({
-    // host: process.env.TCP_HOST,
+    host: process.env.TCP_HOST,
     port: 3000,
   })
 }

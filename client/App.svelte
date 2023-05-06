@@ -11,7 +11,8 @@
   let fade = false
   let ready0 = false
   let ready1 = false
-  let flow0, flow1
+  let flow0 = _ => {}
+  let flow1 = _ => {}
 
   let ch = geckos({
     // url: `${location.protocol}//${location.host}${
@@ -30,8 +31,6 @@
       }
       console.log('connected')
 
-      let S = await SCENE.build(bcan, ch)
-
       flow0 = _ => {
         if (ready0) {
           S.init()
@@ -46,6 +45,8 @@
           state++
         }
       }
+
+      let S = await SCENE.build(bcan, ch)
 
       S.scene.executeWhenReady(_ => {
         ready0 = true

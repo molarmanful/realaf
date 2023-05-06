@@ -4,5 +4,5 @@ services:
     image: molarmanful/realaf:latest
     ports:
       - "3000:3000/tcp"
-      - "1024-65530:1024-65530/udp"
+      - "20000-20100:20000-20100/udp"
     restart: always

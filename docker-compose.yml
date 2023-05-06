@@ -1,6 +1,6 @@
 version: '3.8'
 services:
-  realaf:
+  web:
     image: molarmanful/realaf:latest
     ports:
       - "3000:3000/tcp"

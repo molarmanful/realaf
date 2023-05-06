@@ -1,6 +1,14 @@
 version: '3.8'
 
 services:
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config.json
+    command: --interval 30
+    restart: always
+
   proxy:
     image: nginxproxy/nginx-proxy
     ports:
@@ -19,12 +27,4 @@ services:
     environment:
       - VIRTUAL_HOST=realaf.ninja
       - VIRTUAL_PORT=3000
-    restart: always
-
-  watchtower:
-    image: containrrr/watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /root/.docker/config.json:/config.json
-    command: --interval 30
     restart: always

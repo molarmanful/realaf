@@ -9,18 +9,9 @@ services:
     command: --interval 30
     restart: always
 
-  rproxy:
-    image: traefik
-    command: --api.insecure=true --providers.docker
-    ports:
-      - "80:80"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-
   web:
     image: molarmanful/realaf
     ports:
-      - "3000:3000/tcp"
-      - "20000-20100:20000-20100/udp"
+      - 3000:3000/tcp
+      - 20000-20100:20000-20100/udp
     restart: always

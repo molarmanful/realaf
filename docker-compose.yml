@@ -12,10 +12,10 @@ services:
   proxy:
     image: nginxproxy/nginx-proxy
     ports:
-      - 80:80
-      - 443:443
+      - 3000:80
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./realaf.ninja:/etc/nginx/vhost.d/realaf.ninja:ro
     restart: always
 
   web:
@@ -25,5 +25,4 @@ services:
       - 20000-20100:20000-20100/udp
     environment:
       - VIRTUAL_HOST=realaf.ninja
-      - VIRTUAL_PORT=3000
     restart: always

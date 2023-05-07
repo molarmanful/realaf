@@ -22,8 +22,8 @@ services:
   web:
     image: molarmanful/realaf
     ports:
-      - "80:3000/tcp"
-      - "443:3000/tcp"
+      - "3000:80/tcp"
+      - "3000:443/tcp"
       - "20000-20100:20000-20100/udp"
     environment:
       - VIRTUAL_HOST=realaf.ninja

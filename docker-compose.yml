@@ -17,13 +17,18 @@ services:
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - appnet
     restart: always
-    depends_on:
-      - web
 
   web:
     image: molarmanful/realaf
     ports:
       - 3000:3000/tcp
       - 20000-20100:20000-20100/udp
+    networks:
+      - appnet
     restart: always
+
+networks:
+  appnet:

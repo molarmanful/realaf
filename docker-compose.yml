@@ -9,20 +9,21 @@ services:
     command: --interval 30
     restart: always
 
-  proxy:
-    image: nginxproxy/nginx-proxy
-    ports:
-      - "80:80"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-    environment:
-      - ENABLE_IPV6=true
-    restart: always
+  # proxy:
+  #   image: nginxproxy/nginx-proxy
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - /var/run/docker.sock:/tmp/docker.sock:ro
+  #   environment:
+  #     - ENABLE_IPV6=true
+  #   restart: always
 
   web:
     image: molarmanful/realaf
     ports:
-      - "3000:3000/tcp"
+      - "80:3000/tcp"
+      - "443:3000/tcp"
       - "20000-20100:20000-20100/udp"
     environment:
       - VIRTUAL_HOST=realaf.ninja

@@ -20,6 +20,8 @@ services:
     networks:
       - appnet
     restart: always
+    depends_on:
+      - web
 
   web:
     image: molarmanful/realaf
@@ -29,7 +31,3 @@ services:
     networks:
       - appnet
     restart: always
-
-networks:
-  appnet:
-    driver: bridge

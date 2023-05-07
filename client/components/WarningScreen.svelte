@@ -10,7 +10,7 @@
   <br />
   <p>MAY CONTAIN POTENTIALLY DISORIENTING FIRST-PERSON MOTION.</p>
   <p>BEST EXPERIENCED WITH A KEYBOARD AND MOUSE.</p>
-  <p>(MAY ALSO REQUIRE A BEEFY COMPUTER.)</p>
+  <p>(MAY ALSO REQUIRE A BEEFY GPU.)</p>
   <br />
   <p text-center animate-pulse>
     [{loaded ? 'CLICK TO CONTINUE' : 'LOADING...'}]

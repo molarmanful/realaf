@@ -12,7 +12,7 @@ services:
   proxy:
     image: nginxproxy/nginx-proxy
     ports:
-      - 3000:80
+      - 80:80
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./realaf.ninja:/etc/nginx/vhost.d/realaf.ninja:ro

@@ -18,7 +18,7 @@
     // url: `${location.protocol}//${location.host}${
     //   import.meta.env.PROD ? ':3000' : ''
     // }`,
-    port: 3000,
+    port: 80,
   })
 
   onMount(_ => {

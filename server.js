@@ -27,6 +27,6 @@ if (process.argv[1] == fileURLToPath(import.meta.url)) {
   new NET(server.server)
   await server.listen({
     host: process.env.TCP_HOST,
-    port: 80,
+    port: 3000,
   })
 }
